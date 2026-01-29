@@ -1,10 +1,10 @@
 #!/bin/bash
 # Self-Improving Agent - Quick Install Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/YOUR_REPO/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/self-improving-agent/main/install.sh | bash
 
 set -e
 
-REPO_URL="https://github.com/YOUR_USERNAME/self-improving-agent.git"
+REPO_URL="https://github.com/xmaks82/self-improving-agent.git"
 INSTALL_DIR="$HOME/self-improving-agent"
 
 echo "╔══════════════════════════════════════════════════════════════╗"

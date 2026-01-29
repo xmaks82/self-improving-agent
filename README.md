@@ -69,7 +69,7 @@
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/YOUR_USERNAME/self-improving-agent.git
+git clone https://github.com/xmaks82/self-improving-agent.git
 cd self-improving-agent
 
 # Настроить ключи
@@ -85,7 +85,7 @@ docker compose run --rm agent
 ### Вариант 2: Локальная установка
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/self-improving-agent.git
+git clone https://github.com/xmaks82/self-improving-agent.git
 cd self-improving-agent
 python -m venv venv
 source venv/bin/activate
