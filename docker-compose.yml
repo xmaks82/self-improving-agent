@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  agent:
+    build: .
+    container_name: self-improving-agent
+    stdin_open: true    # For interactive CLI
+    tty: true           # For interactive CLI
+    environment:
+      # Required: at least one API key
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      # Optional: for more models
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
+      # Optional: for improvement pipeline
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Model configuration
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-llama-3.3-70b}
+      - ANALYZER_MODEL=${ANALYZER_MODEL:-claude-sonnet}
+      - VERSIONER_MODEL=${VERSIONER_MODEL:-claude-sonnet}
+      - FEEDBACK_MODEL=${FEEDBACK_MODEL:-claude-haiku}
+      # Thresholds
+      - FEEDBACK_CONFIDENCE_THRESHOLD=${FEEDBACK_CONFIDENCE_THRESHOLD:-0.8}
+      - IMPROVEMENT_CONFIDENCE_THRESHOLD=${IMPROVEMENT_CONFIDENCE_THRESHOLD:-0.6}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      # Persist prompts and logs
+      - ./data/prompts:/app/data/prompts
+      - ./data/logs:/app/data/logs
+    restart: unless-stopped
