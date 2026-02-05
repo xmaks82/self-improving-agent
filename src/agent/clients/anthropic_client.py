@@ -1,9 +1,10 @@
 """Anthropic Claude client implementation."""
 
 from typing import Iterator, Optional
-from anthropic import Anthropic
+from anthropic import Anthropic, RateLimitError as AnthropicRateLimitError
 
 from .base import BaseLLMClient, LLMResponse, LLMToolResponse, ToolCall, ToolResult
+from .exceptions import RateLimitError
 
 
 class AnthropicClient(BaseLLMClient):
@@ -51,7 +52,14 @@ class AnthropicClient(BaseLLMClient):
         if tools:
             kwargs["tools"] = tools
 
-        response = self.client.messages.create(**kwargs)
+        try:
+            response = self.client.messages.create(**kwargs)
+        except AnthropicRateLimitError as e:
+            raise RateLimitError(
+                provider="anthropic",
+                model=self.model,
+                message=str(e),
+            ) from e
 
         # Extract text content
         content = ""
@@ -83,9 +91,16 @@ class AnthropicClient(BaseLLMClient):
         if system:
             kwargs["system"] = system
 
-        with self.client.messages.stream(**kwargs) as stream:
-            for text in stream.text_stream:
-                yield text
+        try:
+            with self.client.messages.stream(**kwargs) as stream:
+                for text in stream.text_stream:
+                    yield text
+        except AnthropicRateLimitError as e:
+            raise RateLimitError(
+                provider="anthropic",
+                model=self.model,
+                message=str(e),
+            ) from e
 
     def stream_with_usage(
         self,
@@ -106,13 +121,20 @@ class AnthropicClient(BaseLLMClient):
         usage = {"input_tokens": 0, "output_tokens": 0}
 
         def generate():
-            with self.client.messages.stream(**kwargs) as stream:
-                for text in stream.text_stream:
-                    yield text
-                # Get final message for usage
-                final = stream.get_final_message()
-                usage["input_tokens"] = final.usage.input_tokens
-                usage["output_tokens"] = final.usage.output_tokens
+            try:
+                with self.client.messages.stream(**kwargs) as stream:
+                    for text in stream.text_stream:
+                        yield text
+                    # Get final message for usage
+                    final = stream.get_final_message()
+                    usage["input_tokens"] = final.usage.input_tokens
+                    usage["output_tokens"] = final.usage.output_tokens
+            except AnthropicRateLimitError as e:
+                raise RateLimitError(
+                    provider="anthropic",
+                    model=self.model,
+                    message=str(e),
+                ) from e
 
         return generate(), usage
 
@@ -134,7 +156,14 @@ class AnthropicClient(BaseLLMClient):
         if system:
             kwargs["system"] = system
 
-        response = self.client.messages.create(**kwargs)
+        try:
+            response = self.client.messages.create(**kwargs)
+        except AnthropicRateLimitError as e:
+            raise RateLimitError(
+                provider="anthropic",
+                model=self.model,
+                message=str(e),
+            ) from e
 
         # Extract text and tool calls
         content = ""

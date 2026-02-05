@@ -15,6 +15,8 @@ from pathlib import Path
 from ..agents.main_agent import MainAgent
 from ..storage.prompts import PromptManager
 from ..clients import get_available_models, get_free_models
+from ..clients.exceptions import RateLimitError
+from ..clients.factory import get_fallback_models
 from ..config import config
 
 
@@ -91,22 +93,95 @@ class AgentCLI:
         """Send message to agent and display streaming response."""
         console.print()
 
-        response_text = ""
-        spinner = Spinner("dots", text="Thinking...")
+        while True:  # Loop for retry on fallback
+            try:
+                response_text = ""
+                spinner = Spinner("dots", text="Thinking...")
 
-        with Live(spinner, refresh_per_second=10, transient=True) as live:
-            async for chunk in self.main_agent.chat(message):
-                response_text += chunk
-                # Update display with markdown rendering
-                live.update(Markdown(response_text))
+                with Live(spinner, refresh_per_second=10, transient=True) as live:
+                    async for chunk in self.main_agent.chat(message):
+                        response_text += chunk
+                        # Update display with markdown rendering
+                        live.update(Markdown(response_text))
 
-        # Final render
+                # Final render
+                console.print(Panel(
+                    Markdown(response_text),
+                    title="Assistant",
+                    border_style="green",
+                ))
+                console.print()
+                break  # Success - exit retry loop
+
+            except RateLimitError as e:
+                # Get fallback options
+                fallbacks = get_fallback_models(e.model)
+
+                if not fallbacks:
+                    console.print(Panel(
+                        f"[red]Rate limit reached for {e.model}.[/red]\n"
+                        "No alternative models available.\n"
+                        "Please wait and try again later.",
+                        title="Rate Limit Error",
+                        border_style="red",
+                    ))
+                    # Remove failed message from history
+                    if self.main_agent.conversation_history:
+                        self.main_agent.conversation_history.pop()
+                    break
+
+                # Show rate limit message and ask for confirmation
+                alternative = fallbacks[0]
+                if await self._confirm_fallback(e.model, alternative, e.retry_after):
+                    # User confirmed - switch model and retry
+                    old_model = self.main_agent.model
+                    self.main_agent.set_model(alternative)
+                    console.print(
+                        f"[green]Switched from {old_model} to {self.main_agent.model} "
+                        f"({self.main_agent.provider})[/green]"
+                    )
+                    # Remove failed message from history before retry
+                    if self.main_agent.conversation_history:
+                        self.main_agent.conversation_history.pop()
+                    # Continue loop to retry with new model
+                    continue
+                else:
+                    # User declined
+                    console.print(
+                        "[yellow]Keeping current model. "
+                        "Please wait before sending another message.[/yellow]"
+                    )
+                    # Remove failed message from history
+                    if self.main_agent.conversation_history:
+                        self.main_agent.conversation_history.pop()
+                    break
+
+    async def _confirm_fallback(
+        self,
+        current_model: str,
+        alternative: str,
+        retry_after: float | None = None,
+    ) -> bool:
+        """Ask user to confirm switching to fallback model."""
+        retry_info = ""
+        if retry_after:
+            retry_info = f" (retry available in {int(retry_after)}s)"
+
         console.print(Panel(
-            Markdown(response_text),
-            title="Assistant",
-            border_style="green",
+            f"[yellow]Rate limit reached for {current_model}.[/yellow]{retry_info}\n\n"
+            f"Switch to [cyan]{alternative}[/cyan]?",
+            title="Rate Limit",
+            border_style="yellow",
         ))
-        console.print()
+
+        try:
+            response = await asyncio.to_thread(
+                self.session.prompt,
+                "Switch model? [y/n]: "
+            )
+            return response.strip().lower() in ["y", "yes"]
+        except (KeyboardInterrupt, EOFError):
+            return False
 
     async def _handle_command(self, command: str) -> bool:
         """

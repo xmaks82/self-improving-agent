@@ -6,10 +6,13 @@ import os
 
 try:
     from groq import Groq
+    from groq import RateLimitError as GroqRateLimitError
 except ImportError:
     Groq = None
+    GroqRateLimitError = None
 
 from .base import BaseLLMClient, LLMResponse, LLMToolResponse, ToolCall, ToolResult
+from .exceptions import RateLimitError
 
 
 class GroqClient(BaseLLMClient):
@@ -86,7 +89,15 @@ class GroqClient(BaseLLMClient):
         if tools:
             kwargs["tools"] = self._convert_tools_to_openai(tools)
 
-        response = self.client.chat.completions.create(**kwargs)
+        try:
+            response = self.client.chat.completions.create(**kwargs)
+        except GroqRateLimitError as e:
+            raise RateLimitError(
+                provider="groq",
+                model=self.model,
+                message=str(e),
+                retry_after=getattr(e, "retry_after", None),
+            ) from e
 
         content = response.choices[0].message.content or ""
 
@@ -112,12 +123,20 @@ class GroqClient(BaseLLMClient):
 
         formatted_messages.extend(messages)
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=formatted_messages,
-            max_tokens=max_tokens,
-            stream=True,
-        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=formatted_messages,
+                max_tokens=max_tokens,
+                stream=True,
+            )
+        except GroqRateLimitError as e:
+            raise RateLimitError(
+                provider="groq",
+                model=self.model,
+                message=str(e),
+                retry_after=getattr(e, "retry_after", None),
+            ) from e
 
         for chunk in response:
             if chunk.choices and chunk.choices[0].delta.content:
@@ -148,7 +167,15 @@ class GroqClient(BaseLLMClient):
             "tools": self._convert_tools_to_openai(tools),
         }
 
-        response = self.client.chat.completions.create(**kwargs)
+        try:
+            response = self.client.chat.completions.create(**kwargs)
+        except GroqRateLimitError as e:
+            raise RateLimitError(
+                provider="groq",
+                model=self.model,
+                message=str(e),
+                retry_after=getattr(e, "retry_after", None),
+            ) from e
 
         # Extract content and tool calls
         message = response.choices[0].message

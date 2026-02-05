@@ -6,6 +6,7 @@ import os
 import httpx
 
 from .base import BaseLLMClient, LLMResponse, LLMToolResponse, ToolCall, ToolResult
+from .exceptions import RateLimitError
 
 
 class DeepSeekClient(BaseLLMClient):
@@ -81,12 +82,24 @@ class DeepSeekClient(BaseLLMClient):
         if tools:
             payload["tools"] = self._convert_tools_to_openai(tools)
 
-        response = self.client.post(
-            f"{self.API_BASE}/chat/completions",
-            headers=self._headers(),
-            json=payload,
-        )
-        response.raise_for_status()
+        try:
+            response = self.client.post(
+                f"{self.API_BASE}/chat/completions",
+                headers=self._headers(),
+                json=payload,
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                retry_after = e.response.headers.get("retry-after")
+                raise RateLimitError(
+                    provider="deepseek",
+                    model=self.model,
+                    message=str(e),
+                    retry_after=float(retry_after) if retry_after else None,
+                ) from e
+            raise
+
         data = response.json()
 
         content = data["choices"][0]["message"]["content"] or ""
@@ -121,24 +134,35 @@ class DeepSeekClient(BaseLLMClient):
             "stream": True,
         }
 
-        with self.client.stream(
-            "POST",
-            f"{self.API_BASE}/chat/completions",
-            headers=self._headers(),
-            json=payload,
-        ) as response:
-            response.raise_for_status()
-            for line in response.iter_lines():
-                if line.startswith("data: "):
-                    data = line[6:]
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                        if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
-                            yield chunk["choices"][0]["delta"]["content"]
-                    except (json.JSONDecodeError, KeyError, IndexError, TypeError):
-                        continue
+        try:
+            with self.client.stream(
+                "POST",
+                f"{self.API_BASE}/chat/completions",
+                headers=self._headers(),
+                json=payload,
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if line.startswith("data: "):
+                        data = line[6:]
+                        if data == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data)
+                            if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
+                                yield chunk["choices"][0]["delta"]["content"]
+                        except (json.JSONDecodeError, KeyError, IndexError, TypeError):
+                            continue
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                retry_after = e.response.headers.get("retry-after")
+                raise RateLimitError(
+                    provider="deepseek",
+                    model=self.model,
+                    message=str(e),
+                    retry_after=float(retry_after) if retry_after else None,
+                ) from e
+            raise
 
     def chat_with_tools(
         self,
@@ -165,12 +189,24 @@ class DeepSeekClient(BaseLLMClient):
             "tools": self._convert_tools_to_openai(tools),
         }
 
-        response = self.client.post(
-            f"{self.API_BASE}/chat/completions",
-            headers=self._headers(),
-            json=payload,
-        )
-        response.raise_for_status()
+        try:
+            response = self.client.post(
+                f"{self.API_BASE}/chat/completions",
+                headers=self._headers(),
+                json=payload,
+            )
+            response.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 429:
+                retry_after = e.response.headers.get("retry-after")
+                raise RateLimitError(
+                    provider="deepseek",
+                    model=self.model,
+                    message=str(e),
+                    retry_after=float(retry_after) if retry_after else None,
+                ) from e
+            raise
+
         data = response.json()
 
         message = data["choices"][0]["message"]

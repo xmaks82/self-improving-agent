@@ -143,3 +143,57 @@ def get_all_model_names() -> list[str]:
     for provider_models in get_available_models().values():
         models.extend(provider_models)
     return models
+
+
+def get_fallback_models(current_model: str) -> list[str]:
+    """
+    Get ordered list of fallback models when rate limit is hit.
+
+    Priority:
+    1. Other free providers with valid API keys
+    2. Paid providers as last resort (if keys available)
+
+    Args:
+        current_model: The model that hit rate limit
+
+    Returns:
+        List of model names to try, in priority order
+    """
+    current_provider = get_provider(current_model)
+    fallbacks = []
+
+    # Define fallback models by provider (most reliable first)
+    provider_fallbacks = {
+        "groq": ["llama-3.3-70b", "llama-4-maverick"],
+        "deepseek": ["deepseek-chat"],
+        "zhipu": ["glm-4-plus", "glm-4.5-flash"],
+        "anthropic": ["claude-haiku", "claude-sonnet"],
+    }
+
+    # Check which providers have valid API keys
+    available_providers = []
+    if os.getenv("GROQ_API_KEY"):
+        available_providers.append("groq")
+    if os.getenv("DEEPSEEK_API_KEY"):
+        available_providers.append("deepseek")
+    if os.getenv("ZHIPU_API_KEY"):
+        available_providers.append("zhipu")
+    if os.getenv("ANTHROPIC_API_KEY"):
+        available_providers.append("anthropic")
+
+    # Priority order: groq -> deepseek -> zhipu -> anthropic
+    priority_order = ["groq", "deepseek", "zhipu", "anthropic"]
+
+    for provider in priority_order:
+        if provider not in available_providers:
+            continue
+        for model in provider_fallbacks[provider]:
+            # Skip current model
+            if model == current_model:
+                continue
+            # Skip models from same provider (they likely have same rate limit)
+            if provider == current_provider:
+                continue
+            fallbacks.append(model)
+
+    return fallbacks

@@ -5,6 +5,7 @@ import json
 from zhipuai import ZhipuAI
 
 from .base import BaseLLMClient, LLMResponse, LLMToolResponse, ToolCall, ToolResult
+from .exceptions import RateLimitError
 
 
 class ZhipuClient(BaseLLMClient):
@@ -42,6 +43,16 @@ class ZhipuClient(BaseLLMClient):
         self.client = ZhipuAI(api_key=api_key)
         self.model = self.MODELS.get(model, model)
 
+    def _handle_rate_limit(self, e: Exception):
+        """Check if exception is rate limit and raise unified error."""
+        status_code = getattr(e, "status_code", None)
+        if status_code == 429:
+            raise RateLimitError(
+                provider="zhipu",
+                model=self.model,
+                message=str(e),
+            ) from e
+
     def chat(
         self,
         messages: list[dict],
@@ -71,7 +82,11 @@ class ZhipuClient(BaseLLMClient):
             # Convert Anthropic tool format to Zhipu/OpenAI format
             kwargs["tools"] = self._convert_tools_to_openai(tools)
 
-        response = self.client.chat.completions.create(**kwargs)
+        try:
+            response = self.client.chat.completions.create(**kwargs)
+        except Exception as e:
+            self._handle_rate_limit(e)
+            raise
 
         # Extract content
         content = response.choices[0].message.content or ""
@@ -101,12 +116,16 @@ class ZhipuClient(BaseLLMClient):
 
         formatted_messages.extend(messages)
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=formatted_messages,
-            max_tokens=max_tokens,
-            stream=True,
-        )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=formatted_messages,
+                max_tokens=max_tokens,
+                stream=True,
+            )
+        except Exception as e:
+            self._handle_rate_limit(e)
+            raise
 
         for chunk in response:
             if chunk.choices and chunk.choices[0].delta.content:
@@ -127,12 +146,16 @@ class ZhipuClient(BaseLLMClient):
         formatted_messages.extend(messages)
 
         def generate():
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=formatted_messages,
-                max_tokens=max_tokens,
-                stream=True,
-            )
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=formatted_messages,
+                    max_tokens=max_tokens,
+                    stream=True,
+                )
+            except Exception as e:
+                self._handle_rate_limit(e)
+                raise
 
             for chunk in response:
                 if chunk.choices and chunk.choices[0].delta.content:
@@ -170,7 +193,11 @@ class ZhipuClient(BaseLLMClient):
             "tools": self._convert_tools_to_openai(tools),
         }
 
-        response = self.client.chat.completions.create(**kwargs)
+        try:
+            response = self.client.chat.completions.create(**kwargs)
+        except Exception as e:
+            self._handle_rate_limit(e)
+            raise
 
         # Extract content and tool calls
         message = response.choices[0].message
