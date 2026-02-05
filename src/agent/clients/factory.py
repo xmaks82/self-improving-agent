@@ -20,13 +20,10 @@ MODEL_PROVIDERS = {
     "llama-3.3-70b": "groq",
     "qwen3-32b": "groq",
     "kimi-k2": "groq",
-    "gpt-oss-120b": "groq",
 
     # === CEREBRAS (free 1M tokens/day, ultra-fast) ===
-    "llama-3.1-8b": "cerebras",
-    "llama-3.1-70b": "cerebras",
+    "llama3.1-8b": "cerebras",
     "cerebras": "cerebras",
-    "cerebras-70b": "cerebras",
     "cerebras-8b": "cerebras",
 
     # === ZHIPU (free tier with rate limits) ===
@@ -49,7 +46,7 @@ def get_provider(model: str) -> str:
         return "anthropic"
     if model.startswith("llama-4") or model.startswith("qwen") or model.startswith("kimi") or model.startswith("gpt-oss"):
         return "groq"
-    if model.startswith("llama-3.1") or model.startswith("cerebras"):
+    if model.startswith("llama3.1") or model.startswith("cerebras"):
         return "cerebras"
     if model.startswith("glm") or model.startswith("codegeex"):
         return "zhipu"
@@ -165,8 +162,8 @@ def get_fallback_models(current_model: str) -> list[str]:
     # Define fallback models by provider (most reliable first)
     provider_fallbacks = {
         "groq": ["llama-3.3-70b", "llama-4-maverick"],
-        "cerebras": ["llama-3.1-70b", "llama-3.1-8b"],
-        "zhipu": ["glm-4-plus", "glm-4.5-flash"],
+        "cerebras": ["llama3.1-8b"],
+        "zhipu": ["glm-4.5-flash"],
         "anthropic": ["claude-haiku", "claude-sonnet"],
     }
 

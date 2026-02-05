@@ -26,17 +26,15 @@ class CerebrasClient(BaseLLMClient):
 
     # Available models (February 2026)
     MODELS = {
-        # Llama 3.1 models
-        "llama-3.1-8b": "llama3.1-8b",
-        "llama-3.1-70b": "llama3.1-70b",
+        # Production model
+        "llama3.1-8b": "llama3.1-8b",
 
         # Aliases
-        "cerebras": "llama3.1-70b",
-        "cerebras-70b": "llama3.1-70b",
+        "cerebras": "llama3.1-8b",
         "cerebras-8b": "llama3.1-8b",
     }
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "llama-3.1-70b"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "llama3.1-8b"):
         api_key = api_key or os.getenv("CEREBRAS_API_KEY")
         if not api_key:
             raise ValueError(
@@ -257,4 +255,4 @@ class CerebrasClient(BaseLLMClient):
     @classmethod
     def list_models(cls) -> list[str]:
         """List available model shortcuts."""
-        return ["llama-3.1-8b", "llama-3.1-70b", "cerebras", "cerebras-70b", "cerebras-8b"]
+        return ["llama3.1-8b", "cerebras", "cerebras-8b"]
