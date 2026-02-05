@@ -1,4 +1,4 @@
-"""DeepSeek API client - free tier with 5M tokens/month."""
+"""Cerebras API client - free tier with 1M tokens/day."""
 
 from typing import AsyncIterator, Optional
 import json
@@ -9,40 +9,39 @@ from .base import BaseLLMClient, LLMResponse, LLMToolResponse, ToolCall, ToolRes
 from .exceptions import RateLimitError
 
 
-class DeepSeekClient(BaseLLMClient):
+class CerebrasClient(BaseLLMClient):
     """
-    Client for DeepSeek API - OpenAI-compatible interface.
+    Client for Cerebras API - OpenAI-compatible interface.
 
-    Free tier: 5M tokens/month, refreshes monthly.
-    Get API key: https://platform.deepseek.com/
+    Free tier: 1M tokens/day (resets daily).
+    Speed: 450-1800 tokens/sec (20x faster than GPU).
+    Get API key: https://cloud.cerebras.ai/
     """
 
-    provider = "deepseek"
+    provider = "cerebras"
     supports_streaming = True
     supports_tools = True
 
-    API_BASE = "https://api.deepseek.com/v1"
+    API_BASE = "https://api.cerebras.ai/v1"
 
     # Available models (February 2026)
     MODELS = {
-        # DeepSeek V3.2 - latest general model
-        "deepseek-chat": "deepseek-chat",
-        "deepseek-v3": "deepseek-chat",
-
-        # DeepSeek R1 - reasoning model
-        "deepseek-reasoner": "deepseek-reasoner",
-        "deepseek-r1": "deepseek-reasoner",
+        # Llama 3.1 models
+        "llama-3.1-8b": "llama3.1-8b",
+        "llama-3.1-70b": "llama3.1-70b",
 
         # Aliases
-        "deepseek": "deepseek-chat",
+        "cerebras": "llama3.1-70b",
+        "cerebras-70b": "llama3.1-70b",
+        "cerebras-8b": "llama3.1-8b",
     }
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "deepseek-chat"):
-        api_key = api_key or os.getenv("DEEPSEEK_API_KEY")
+    def __init__(self, api_key: Optional[str] = None, model: str = "llama-3.1-70b"):
+        api_key = api_key or os.getenv("CEREBRAS_API_KEY")
         if not api_key:
             raise ValueError(
-                "DeepSeek API key required. Set DEEPSEEK_API_KEY environment variable.\n"
-                "Get free key at: https://platform.deepseek.com/"
+                "Cerebras API key required. Set CEREBRAS_API_KEY environment variable.\n"
+                "Get free key at: https://cloud.cerebras.ai/"
             )
 
         self.api_key = api_key
@@ -93,7 +92,7 @@ class DeepSeekClient(BaseLLMClient):
             if e.response.status_code == 429:
                 retry_after = e.response.headers.get("retry-after")
                 raise RateLimitError(
-                    provider="deepseek",
+                    provider="cerebras",
                     model=self.model,
                     message=str(e),
                     retry_after=float(retry_after) if retry_after else None,
@@ -157,7 +156,7 @@ class DeepSeekClient(BaseLLMClient):
             if e.response.status_code == 429:
                 retry_after = e.response.headers.get("retry-after")
                 raise RateLimitError(
-                    provider="deepseek",
+                    provider="cerebras",
                     model=self.model,
                     message=str(e),
                     retry_after=float(retry_after) if retry_after else None,
@@ -171,7 +170,7 @@ class DeepSeekClient(BaseLLMClient):
         system: Optional[str] = None,
         max_tokens: int = 4096,
     ) -> LLMToolResponse:
-        """Chat with tools via DeepSeek API."""
+        """Chat with tools via Cerebras API."""
         formatted_messages = []
 
         if system:
@@ -200,7 +199,7 @@ class DeepSeekClient(BaseLLMClient):
             if e.response.status_code == 429:
                 retry_after = e.response.headers.get("retry-after")
                 raise RateLimitError(
-                    provider="deepseek",
+                    provider="cerebras",
                     model=self.model,
                     message=str(e),
                     retry_after=float(retry_after) if retry_after else None,
@@ -258,4 +257,4 @@ class DeepSeekClient(BaseLLMClient):
     @classmethod
     def list_models(cls) -> list[str]:
         """List available model shortcuts."""
-        return ["deepseek-chat", "deepseek-v3", "deepseek-reasoner", "deepseek-r1"]
+        return ["llama-3.1-8b", "llama-3.1-70b", "cerebras", "cerebras-70b", "cerebras-8b"]

@@ -8,7 +8,7 @@ services:
       # Required: at least one API key
       - GROQ_API_KEY=${GROQ_API_KEY}
       # Optional: for more models
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - CEREBRAS_API_KEY=${CEREBRAS_API_KEY:-}
       - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
       # Optional: for improvement pipeline
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

@@ -1,6 +1,6 @@
 # Self-Improving AI Agent v1.0
 
-Самоулучшающийся AI-агент с полноценными agentic capabilities: планирование, память, инструменты, под-агенты. Поддерживает DeepSeek, Groq, Zhipu и Anthropic.
+Самоулучшающийся AI-агент с полноценными agentic capabilities: планирование, память, инструменты, под-агенты. Поддерживает Groq, Cerebras, Zhipu и Anthropic.
 
 ## Что нового в v1.0
 
@@ -110,8 +110,8 @@ agent
 # Groq - рекомендуется (бесплатно, быстро)
 GROQ_API_KEY=gsk_...          # https://console.groq.com/
 
-# DeepSeek - 5M токенов бесплатно (30 дней), потом ~$0.28/1M
-DEEPSEEK_API_KEY=sk-...       # https://platform.deepseek.com/
+# Cerebras - 1M токенов/день бесплатно, ультра-быстрый
+CEREBRAS_API_KEY=...          # https://cloud.cerebras.ai/
 
 # Zhipu AI (glm-4.5-flash бесплатно, остальные платно)
 ZHIPU_API_KEY=...             # https://open.bigmodel.cn/
@@ -275,12 +275,12 @@ Human-in-the-loop система:
 | Llama 3.3 70B | `llama-3.3-70b` |
 | Qwen3 32B | `qwen3-32b` |
 
-#### DeepSeek (5M токенов / 30 дней)
+#### Cerebras (1M токенов / день, ультра-быстрый)
 
 | Модель | ID |
 |--------|-----|
-| DeepSeek V3.2 | `deepseek-chat` |
-| DeepSeek R1 | `deepseek-reasoner` |
+| Llama 3.1 70B | `llama-3.1-70b` |
+| Llama 3.1 8B | `llama-3.1-8b` |
 
 #### Zhipu AI
 
@@ -380,7 +380,7 @@ make shell    # Shell в контейнере
 ```bash
 # API ключи
 GROQ_API_KEY=gsk_...
-DEEPSEEK_API_KEY=sk-...
+CEREBRAS_API_KEY=...
 
 # Модели
 DEFAULT_MODEL=llama-4-maverick
@@ -391,7 +391,7 @@ VERSIONER_MODEL=llama-3.3-70b
 ## Версии
 
 - **v1.0.0** — Полный agentic функционал
-- **v0.3.0** — DeepSeek интеграция, rate limit fallback
+- **v0.3.0** — Cerebras интеграция, rate limit fallback
 - **v0.2.0** — Multi-provider support
 - **v0.1.0** — Initial release
 

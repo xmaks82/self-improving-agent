@@ -22,12 +22,12 @@ MODEL_PROVIDERS = {
     "kimi-k2": "groq",
     "gpt-oss-120b": "groq",
 
-    # === DEEPSEEK (free tier 5M tokens/month) ===
-    "deepseek-chat": "deepseek",
-    "deepseek-v3": "deepseek",
-    "deepseek-reasoner": "deepseek",
-    "deepseek-r1": "deepseek",
-    "deepseek": "deepseek",
+    # === CEREBRAS (free 1M tokens/day, ultra-fast) ===
+    "llama-3.1-8b": "cerebras",
+    "llama-3.1-70b": "cerebras",
+    "cerebras": "cerebras",
+    "cerebras-70b": "cerebras",
+    "cerebras-8b": "cerebras",
 
     # === ZHIPU (free tier with rate limits) ===
     "glm-4.7": "zhipu",
@@ -47,10 +47,10 @@ def get_provider(model: str) -> str:
     # Check prefix
     if model.startswith("claude"):
         return "anthropic"
-    if model.startswith("llama") or model.startswith("qwen") or model.startswith("kimi") or model.startswith("gpt-oss"):
+    if model.startswith("llama-4") or model.startswith("qwen") or model.startswith("kimi") or model.startswith("gpt-oss"):
         return "groq"
-    if model.startswith("deepseek"):
-        return "deepseek"
+    if model.startswith("llama-3.1") or model.startswith("cerebras"):
+        return "cerebras"
     if model.startswith("glm") or model.startswith("codegeex"):
         return "zhipu"
 
@@ -62,7 +62,7 @@ def create_client(
     model: str = "llama-4-maverick",
     anthropic_api_key: Optional[str] = None,
     groq_api_key: Optional[str] = None,
-    deepseek_api_key: Optional[str] = None,
+    cerebras_api_key: Optional[str] = None,
     zhipu_api_key: Optional[str] = None,
 ) -> BaseLLMClient:
     """
@@ -91,10 +91,10 @@ def create_client(
             model=model,
         )
 
-    elif provider == "deepseek":
-        from .deepseek_client import DeepSeekClient
-        return DeepSeekClient(
-            api_key=deepseek_api_key or os.getenv("DEEPSEEK_API_KEY"),
+    elif provider == "cerebras":
+        from .cerebras_client import CerebrasClient
+        return CerebrasClient(
+            api_key=cerebras_api_key or os.getenv("CEREBRAS_API_KEY"),
             model=model,
         )
 
@@ -113,13 +113,13 @@ def get_available_models() -> dict[str, list[str]]:
     """Get available models grouped by provider."""
     from .anthropic_client import AnthropicClient
     from .groq_client import GroqClient
-    from .deepseek_client import DeepSeekClient
+    from .cerebras_client import CerebrasClient
     from .zhipu_client import ZhipuClient
 
     return {
         "anthropic": AnthropicClient.list_models(),
         "groq": GroqClient.list_models(),
-        "deepseek": DeepSeekClient.list_models(),
+        "cerebras": CerebrasClient.list_models(),
         "zhipu": ZhipuClient.list_models(),
     }
 
@@ -127,12 +127,12 @@ def get_available_models() -> dict[str, list[str]]:
 def get_free_models() -> dict[str, list[str]]:
     """Get only free models grouped by provider."""
     from .groq_client import GroqClient
-    from .deepseek_client import DeepSeekClient
+    from .cerebras_client import CerebrasClient
     from .zhipu_client import ZhipuClient
 
     return {
         "groq (free, fast)": GroqClient.list_models(),
-        "deepseek (free 5M/month)": DeepSeekClient.list_models(),
+        "cerebras (free 1M/day, ultra-fast)": CerebrasClient.list_models(),
         "zhipu (free tier)": ZhipuClient.list_models(),
     }
 
@@ -165,7 +165,7 @@ def get_fallback_models(current_model: str) -> list[str]:
     # Define fallback models by provider (most reliable first)
     provider_fallbacks = {
         "groq": ["llama-3.3-70b", "llama-4-maverick"],
-        "deepseek": ["deepseek-chat"],
+        "cerebras": ["llama-3.1-70b", "llama-3.1-8b"],
         "zhipu": ["glm-4-plus", "glm-4.5-flash"],
         "anthropic": ["claude-haiku", "claude-sonnet"],
     }
@@ -174,15 +174,15 @@ def get_fallback_models(current_model: str) -> list[str]:
     available_providers = []
     if os.getenv("GROQ_API_KEY"):
         available_providers.append("groq")
-    if os.getenv("DEEPSEEK_API_KEY"):
-        available_providers.append("deepseek")
+    if os.getenv("CEREBRAS_API_KEY"):
+        available_providers.append("cerebras")
     if os.getenv("ZHIPU_API_KEY"):
         available_providers.append("zhipu")
     if os.getenv("ANTHROPIC_API_KEY"):
         available_providers.append("anthropic")
 
-    # Priority order: groq -> deepseek -> zhipu -> anthropic
-    priority_order = ["groq", "deepseek", "zhipu", "anthropic"]
+    # Priority order: groq -> cerebras -> zhipu -> anthropic
+    priority_order = ["groq", "cerebras", "zhipu", "anthropic"]
 
     for provider in priority_order:
         if provider not in available_providers:

@@ -4,7 +4,7 @@ from .base import BaseLLMClient, LLMResponse, LLMToolResponse, ToolCall, ToolRes
 from .anthropic_client import AnthropicClient
 from .zhipu_client import ZhipuClient
 from .groq_client import GroqClient
-from .deepseek_client import DeepSeekClient
+from .cerebras_client import CerebrasClient
 from .factory import create_client, get_available_models, get_free_models, get_fallback_models
 from .exceptions import RateLimitError
 
@@ -17,7 +17,7 @@ __all__ = [
     "AnthropicClient",
     "ZhipuClient",
     "GroqClient",
-    "DeepSeekClient",
+    "CerebrasClient",
     "create_client",
     "get_available_models",
     "get_free_models",
