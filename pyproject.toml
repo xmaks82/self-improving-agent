@@ -13,6 +13,7 @@ dependencies = [
     "rich>=13.0",
     "prompt-toolkit>=3.0",
     "python-dotenv>=1.0",
+    "mcp>=1.0.0",
 ]
 
 [project.optional-dependencies]

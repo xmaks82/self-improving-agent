@@ -18,6 +18,7 @@ from ..clients import get_available_models, get_free_models
 from ..clients.exceptions import RateLimitError
 from ..clients.factory import get_fallback_models
 from ..planning import TaskManager, TaskStatus
+from ..mcp import MCPManager
 from ..config import config
 
 
@@ -46,6 +47,7 @@ class AgentCLI:
         self.main_agent = main_agent
         self.prompt_manager = prompt_manager
         self.task_manager = TaskManager()
+        self.mcp_manager = MCPManager()
 
         # Setup prompt with history
         history_path = config.paths.base / ".agent_history"
@@ -236,6 +238,12 @@ class AgentCLI:
         elif cmd in ["/tasks", "/task"]:
             await self._handle_tasks(args)
 
+        elif cmd == "/mcp":
+            await self._handle_mcp(args)
+
+        elif cmd == "/tools":
+            self._show_tools()
+
         else:
             console.print(f"[red]Unknown command: {cmd}[/red]")
             console.print("Type /help for available commands.")
@@ -258,6 +266,10 @@ class AgentCLI:
             ("/task start ID", "Mark task as in progress"),
             ("/task delete ID", "Delete task"),
             ("/task clear", "Clear completed tasks"),
+            ("/tools", "List available MCP tools"),
+            ("/mcp list", "List MCP servers"),
+            ("/mcp connect NAME", "Connect to MCP server"),
+            ("/mcp disconnect NAME", "Disconnect from MCP server"),
             ("/prompt", "Show current system prompt"),
             ("/versions", "Show prompt version history"),
             ("/rollback N", "Rollback to version N"),
@@ -588,3 +600,139 @@ class AgentCLI:
             console.print(f"[green]Cleared {count} completed task(s)[/green]")
         else:
             console.print("[dim]No completed tasks to clear[/dim]")
+
+    # ==================== MCP Management ====================
+
+    async def _handle_mcp(self, args: str):
+        """Handle MCP commands."""
+        parts = args.strip().split(maxsplit=1)
+        subcmd = parts[0].lower() if parts else ""
+        subargs = parts[1] if len(parts) > 1 else ""
+
+        # Initialize MCP manager if needed
+        if not self.mcp_manager._initialized:
+            await self.mcp_manager.initialize()
+
+        if not subcmd or subcmd == "list":
+            self._list_mcp_servers()
+        elif subcmd == "connect":
+            await self._mcp_connect(subargs)
+        elif subcmd == "disconnect":
+            await self._mcp_disconnect(subargs)
+        elif subcmd == "add":
+            self._mcp_add_hint()
+        else:
+            console.print(f"[red]Unknown MCP command: {subcmd}[/red]")
+            console.print("Available: list, connect, disconnect")
+
+    def _list_mcp_servers(self):
+        """List all MCP servers."""
+        servers = self.mcp_manager.list_servers()
+
+        if not servers:
+            console.print("[dim]No MCP servers configured.[/dim]")
+            console.print("[dim]Add servers to ~/.agent/mcp.yaml or data/mcp.yaml[/dim]")
+            return
+
+        table = Table(title="MCP Servers", show_header=True)
+        table.add_column("Name", style="cyan")
+        table.add_column("Status", width=12)
+        table.add_column("Tools", width=6)
+        table.add_column("Command")
+
+        for server in servers:
+            if server["connected"]:
+                status = "[green]connected[/green]"
+            elif server["enabled"]:
+                status = "[yellow]ready[/yellow]"
+            else:
+                status = "[dim]disabled[/dim]"
+
+            table.add_row(
+                server["name"],
+                status,
+                str(server["tools"]) if server["connected"] else "-",
+                server["command"],
+            )
+
+        console.print(table)
+
+    async def _mcp_connect(self, server_name: str):
+        """Connect to an MCP server."""
+        if not server_name.strip():
+            console.print("[red]Usage: /mcp connect <server_name>[/red]")
+            return
+
+        server_name = server_name.strip()
+
+        try:
+            console.print(f"[yellow]Connecting to {server_name}...[/yellow]")
+            success = await self.mcp_manager.connect(server_name)
+            if success:
+                client = self.mcp_manager.registry.get_client(server_name)
+                tool_count = len(client.tools) if client else 0
+                console.print(f"[green]Connected to {server_name} ({tool_count} tools)[/green]")
+            else:
+                console.print(f"[red]Failed to connect to {server_name}[/red]")
+        except ValueError as e:
+            console.print(f"[red]{e}[/red]")
+        except Exception as e:
+            console.print(f"[red]Connection error: {e}[/red]")
+
+    async def _mcp_disconnect(self, server_name: str):
+        """Disconnect from an MCP server."""
+        if not server_name.strip():
+            console.print("[red]Usage: /mcp disconnect <server_name>[/red]")
+            return
+
+        server_name = server_name.strip()
+        success = await self.mcp_manager.disconnect(server_name)
+        if success:
+            console.print(f"[green]Disconnected from {server_name}[/green]")
+        else:
+            console.print(f"[red]Server not connected: {server_name}[/red]")
+
+    def _mcp_add_hint(self):
+        """Show hint for adding MCP servers."""
+        console.print("[yellow]To add MCP servers, edit the config file:[/yellow]")
+        console.print()
+        console.print("~/.agent/mcp.yaml or data/mcp.yaml")
+        console.print()
+        console.print("[dim]Example:[/dim]")
+        console.print("""
+servers:
+  filesystem:
+    command: npx
+    args: ["@anthropic/mcp-server-filesystem", "/home/user"]
+    description: File system access
+
+  github:
+    command: npx
+    args: ["@anthropic/mcp-server-github"]
+    env:
+      GITHUB_TOKEN: your-token
+    description: GitHub API access
+""")
+
+    def _show_tools(self):
+        """List all available MCP tools."""
+        tools = self.mcp_manager.list_tools()
+
+        if not tools:
+            console.print("[dim]No tools available.[/dim]")
+            console.print("[dim]Connect to MCP servers first: /mcp connect <name>[/dim]")
+            return
+
+        table = Table(title="Available Tools", show_header=True)
+        table.add_column("Tool", style="cyan")
+        table.add_column("Server", style="dim")
+        table.add_column("Description")
+
+        for tool in tools:
+            desc = tool["description"]
+            if len(desc) > 60:
+                desc = desc[:57] + "..."
+            table.add_row(tool["name"], tool["server"], desc)
+
+        console.print(table)
+        console.print(f"\n[dim]{len(tools)} tool(s) from {self.mcp_manager.connected_count} server(s)[/dim]")

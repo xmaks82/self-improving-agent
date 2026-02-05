@@ -1,0 +1,40 @@
+# MCP Server Configuration
+# Copy this to ~/.agent/mcp.yaml or data/mcp.yaml
+
+servers:
+  # File system access
+  filesystem:
+    command: npx
+    args: ["-y", "@anthropic/mcp-server-filesystem", "/workspace"]
+    description: File system operations
+    enabled: true
+
+  # GitHub integration
+  github:
+    command: npx
+    args: ["-y", "@anthropic/mcp-server-github"]
+    env:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+    description: GitHub API access
+    enabled: false
+
+  # Web browser automation
+  puppeteer:
+    command: npx
+    args: ["-y", "@anthropic/mcp-server-puppeteer"]
+    description: Browser automation
+    enabled: false
+
+  # Memory server for persistent context
+  memory:
+    command: npx
+    args: ["-y", "@anthropic/mcp-server-memory"]
+    description: Persistent memory storage
+    enabled: false
+
+  # SQLite database
+  sqlite:
+    command: npx
+    args: ["-y", "@anthropic/mcp-server-sqlite", "data/agent.db"]
+    description: SQLite database operations
+    enabled: false
