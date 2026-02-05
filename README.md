@@ -6,7 +6,7 @@
 
 В отличие от обычных чат-ботов, где "память" сжимается со временем, этот агент **перманентно улучшает свой системный промпт** на основе вашего фидбека. Каждое улучшение сохраняется навсегда.
 
-> 💡 **Полностью бесплатно**: Агент поддерживает множество бесплатных моделей через Groq и OpenRouter. Все компоненты, включая pipeline улучшений, работают с бесплатными моделями!
+> 💡 **Полностью бесплатно**: Агент работает с бесплатными моделями через Groq и DeepSeek. Все компоненты, включая pipeline улучшений, работают бесплатно!
 
 ```
 Вы: "Слишком длинный ответ"
@@ -30,7 +30,7 @@
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                         MAIN AGENT                              │
-│   Llama 3.3/4 / Qwen 3 / DeepSeek R1 / GLM 4.7 / Claude         │
+│      Llama 4 / Qwen 3 / DeepSeek V3 / GLM 4.7 / Claude          │
 │    Разговорный интерфейс, выполнение задач, детекция фидбека    │
 └───────────┬─────────────────────────────────────┬───────────────┘
             │ при фидбеке                         │ логирует
@@ -59,7 +59,7 @@
 
 | Агент | Модель | Задача |
 |-------|--------|--------|
-| **Main Agent** | Любая (Llama 3.3 70B по умолчанию) | Общение с пользователем |
+| **Main Agent** | Любая (Llama 4 Maverick по умолчанию) | Общение с пользователем |
 | **Analyzer** | Любая с поддержкой tools | Анализ логов, формулирование гипотез |
 | **Versioner** | Любая с поддержкой tools | Генерация улучшенных промптов |
 
@@ -97,32 +97,15 @@ agent      # Запустить
 
 ### Конфигурация API ключей
 
-#### Вариант A: Полностью бесплатно 🆓
-
 ```bash
-# Groq - рекомендуется (быстрый, стабильный)
+# Groq - рекомендуется (быстрый, стабильный, бесплатный)
 GROQ_API_KEY=gsk_...          # https://console.groq.com/
-DEFAULT_MODEL=llama-3.3-70b
 
-# Или OpenRouter (больше моделей, но rate limits)
-# OPENROUTER_API_KEY=sk-or-... # https://openrouter.ai/keys
-# DEFAULT_MODEL=deepseek-r1
+# DeepSeek - отличный reasoning (5M токенов/месяц бесплатно)
+DEEPSEEK_API_KEY=sk-...       # https://platform.deepseek.com/
 ```
 
-> ✅ Pipeline улучшений работает с любым провайдером (Groq, OpenRouter, Zhipu, Anthropic).
-
-#### Вариант B: С платными моделями (опционально) 💰
-
-```bash
-# Groq для Main Agent (бесплатно)
-GROQ_API_KEY=gsk_...
-DEFAULT_MODEL=llama-3.3-70b
-
-# Anthropic для лучшего качества (опционально)
-ANTHROPIC_API_KEY=sk-ant-...
-ANALYZER_MODEL=claude-sonnet
-VERSIONER_MODEL=claude-sonnet
-```
+> ✅ Достаточно одного Groq ключа для полного функционала!
 
 ### Запуск
 
@@ -190,44 +173,43 @@ _Feedback detected. Starting improvement analysis..._
 
 ### 🆓 Бесплатные модели
 
-#### Groq (FREE) — Сверхбыстрый inference ⚡
+#### Groq (FREE) — Рекомендуется ⚡
+
+Сверхбыстрый inference на LPU. 14,400 запросов/день бесплатно.
 
 | Модель | ID | Описание |
 |--------|-----|----------|
-| **Llama 3.3 70B** | `llama-3.3-70b` | Лучшая универсальная, по умолчанию |
 | **Llama 4 Maverick** | `llama-4-maverick` | Новейшая Llama 4 (128 experts) |
-| Llama 4 Scout | `llama-4-scout` | Llama 4 компактная (16 experts) |
-| Qwen 3 32B | `qwen3-32b` | Thinking mode, показывает рассуждения |
-| Kimi K2 | `kimi-k2` | Moonshot AI |
-| GPT-OSS 120B | `gpt-oss-120b` | OpenAI Open Source |
+| **Llama 4 Scout** | `llama-4-scout` | Llama 4 быстрая (16 experts) |
+| **Llama 3.3 70B** | `llama-3.3-70b` | Production, проверенная |
+| **Qwen3 32B** | `qwen3-32b` | Thinking mode |
+| **Kimi K2** | `kimi-k2` | Moonshot AI |
+| **GPT-OSS 120B** | `gpt-oss-120b` | OpenAI open source |
 
-> Регистрация: https://console.groq.com/ (14,400 запросов/день бесплатно)
+> Регистрация: https://console.groq.com/
 
-#### OpenRouter (FREE) — Агрегатор моделей
+#### DeepSeek (FREE 5M/month) — Сильный reasoning
+
+5 миллионов токенов в месяц бесплатно.
 
 | Модель | ID | Описание |
 |--------|-----|----------|
-| **DeepSeek R1** | `deepseek-r1` | Лучший reasoning, Chain-of-Thought |
-| Llama 3.3 70B | `llama-3.3-70b-or` | Meta Llama через OpenRouter |
-| Llama 3.1 405B | `llama-3.1-405b` | Самая большая бесплатная! |
-| Qwen 3 Coder | `qwen3-coder` | Для кодинга |
-| Gemma 3 27B | `gemma-3-27b` | Google Gemma 3 |
-| Mistral Small | `mistral-small` | Mistral AI 24B |
+| **DeepSeek V3.2** | `deepseek-chat` | Универсальная, быстрая |
+| **DeepSeek R1** | `deepseek-reasoner` | Reasoning, Chain-of-Thought |
 
-> Регистрация: https://openrouter.ai/keys
-> ⚠️ Free tier имеет rate limits, рекомендуем Groq как основной
+> Регистрация: https://platform.deepseek.com/
 
 #### Zhipu AI (FREE tier) — Китайские модели
 
 | Модель | ID | Описание |
 |--------|-----|----------|
 | **GLM-4.7** | `glm-4.7` | Новейшая версия |
-| GLM-4.5 Air | `glm-4.5-air` | Баланс скорость/качество |
-| GLM-4.5 Flash | `glm-4.5-flash` | Быстрая |
-| GLM-4 Plus | `glm-4-plus` | Мощная |
+| **GLM-4.5 Air** | `glm-4.5-air` | Баланс скорость/качество |
+| **GLM-4.5 Flash** | `glm-4.5-flash` | Быстрая |
+| **GLM-4 Plus** | `glm-4-plus` | Мощная |
 
-> Регистрация: https://open.bigmodel.cn/ или https://z.ai/
-> ⚠️ Free tier имеет строгий rate limit
+> Регистрация: https://open.bigmodel.cn/
+> ⚠️ Строгий rate limit на free tier
 
 ### 💰 Платные модели
 
@@ -236,28 +218,26 @@ _Feedback detected. Starting improvement analysis..._
 | Модель | ID | Описание |
 |--------|-----|----------|
 | **Claude Opus 4.5** | `claude-opus-4.5` | Лучшая модель Anthropic |
-| Claude Sonnet 4 | `claude-sonnet` | Баланс скорость/качество |
-| Claude Opus 4 | `claude-opus` | Предыдущая версия Opus |
-| Claude Haiku 3.5 | `claude-haiku` | Быстрая и дешёвая |
-
-> 💡 Claude модели обеспечивают лучшее качество для сложных задач анализа и версионирования
+| **Claude Sonnet 4** | `claude-sonnet` | Баланс скорость/качество |
+| **Claude Opus 4** | `claude-opus` | Предыдущая версия Opus |
+| **Claude Haiku 3.5** | `claude-haiku` | Быстрая и дешёвая |
 
 ### Переключение модели
 
 В CLI:
 ```
-/model llama-3.3-70b     # Groq, быстрая, по умолчанию
-/model llama-4-maverick  # Groq, новейшая Llama 4
-/model qwen3-32b         # Groq, с thinking mode
-/model deepseek-r1       # OpenRouter, reasoning
-/model claude-opus-4.5   # Anthropic, лучшая (платная)
+/model llama-4-maverick  # Groq, новейшая (по умолчанию)
+/model llama-3.3-70b     # Groq, production
+/model deepseek-chat     # DeepSeek V3.2
+/model deepseek-reasoner # DeepSeek R1
+/model claude-opus-4.5   # Anthropic (платная)
 ```
 
 Или в `.env`:
 ```bash
-DEFAULT_MODEL=llama-3.3-70b   # Groq (рекомендуется)
-DEFAULT_MODEL=deepseek-r1     # OpenRouter
-DEFAULT_MODEL=claude-opus-4.5 # Anthropic (платная)
+DEFAULT_MODEL=llama-4-maverick   # Groq (рекомендуется)
+DEFAULT_MODEL=deepseek-chat      # DeepSeek
+DEFAULT_MODEL=claude-opus-4.5    # Anthropic (платная)
 ```
 
 ## Конфигурация
@@ -267,23 +247,23 @@ DEFAULT_MODEL=claude-opus-4.5 # Anthropic (платная)
 ```bash
 # ========= API КЛЮЧИ =========
 
-# БЕСПЛАТНЫЕ провайдеры (рекомендуется хотя бы один)
-GROQ_API_KEY=gsk_...              # Groq - очень быстрый
-OPENROUTER_API_KEY=sk-or-...      # OpenRouter - много моделей
+# БЕСПЛАТНЫЕ провайдеры
+GROQ_API_KEY=gsk_...              # Groq - рекомендуется
+DEEPSEEK_API_KEY=sk-...           # DeepSeek - 5M/month free
+ZHIPU_API_KEY=...                 # Zhipu - strict rate limit
 
 # ПЛАТНЫЕ провайдеры
-ANTHROPIC_API_KEY=sk-ant-...      # Для Claude и pipeline улучшений
-ZHIPU_API_KEY=...                 # Для GLM моделей
+ANTHROPIC_API_KEY=sk-ant-...      # Anthropic Claude
 
 # ========= МОДЕЛИ =========
 
 # Основной агент (любая модель)
-DEFAULT_MODEL=llama-3.3-70b        # Groq, рекомендуется
+DEFAULT_MODEL=llama-4-maverick     # Groq, рекомендуется
 
 # Pipeline улучшения (любая модель с поддержкой tools)
-ANALYZER_MODEL=llama-3.3-70b    # или claude-sonnet для лучшего качества
-VERSIONER_MODEL=llama-3.3-70b   # или claude-sonnet для лучшего качества
-FEEDBACK_MODEL=claude-haiku     # или любая быстрая модель
+ANALYZER_MODEL=llama-3.3-70b
+VERSIONER_MODEL=llama-3.3-70b
+FEEDBACK_MODEL=llama-4-scout
 
 # ========= ПОРОГИ =========
 
@@ -300,25 +280,25 @@ LOG_LEVEL=INFO
 | Провайдер | Main Agent | Analyzer | Versioner | Цена |
 |-----------|:----------:|:--------:|:---------:|------|
 | **Groq** | ✅ | ✅ | ✅ | FREE |
-| **OpenRouter** | ✅ | ✅ | ✅ | FREE |
+| **DeepSeek** | ✅ | ✅ | ✅ | FREE 5M/month |
 | **Zhipu AI** | ✅ | ✅ | ✅ | FREE tier |
 | **Anthropic** | ✅ | ✅ | ✅ | Платно |
 
 ### Режимы работы
 
-**Полностью бесплатный режим** (с улучшениями):
-- Только `GROQ_API_KEY` или `OPENROUTER_API_KEY`
-- Main Agent на бесплатной модели
-- Pipeline улучшений на той же бесплатной модели
+**Полностью бесплатный режим** (рекомендуется):
+- Только `GROQ_API_KEY`
+- Все агенты на Llama 4 / Llama 3.3
+- Полный функционал
 
-**Гибридный режим** (рекомендуется):
-- `GROQ_API_KEY` для Main Agent (быстро, бесплатно)
-- `ANTHROPIC_API_KEY` для Analyzer/Versioner (лучшее качество анализа)
+**С DeepSeek reasoning**:
+- `GROQ_API_KEY` + `DEEPSEEK_API_KEY`
+- Main Agent на Groq (быстро)
+- Можно использовать DeepSeek R1 для сложных задач
 
 **Премиум режим**:
-- `ANTHROPIC_API_KEY` для всех агентов
-- Claude Opus для Main Agent
-- Claude Sonnet для Analyzer/Versioner
+- `ANTHROPIC_API_KEY`
+- Claude для лучшего качества
 
 ## Структура проекта
 
@@ -328,7 +308,6 @@ LOG_LEVEL=INFO
 ├── Dockerfile                     # Docker образ
 ├── docker-compose.yml             # Docker Compose конфигурация
 ├── Makefile                       # Команды (make run, make build, etc.)
-├── install.sh                     # Скрипт автоустановки
 ├── .env                           # Конфигурация (создать из .env.example)
 ├── .env.example                   # Шаблон конфигурации
 ├── README.md                      # Эта документация
@@ -345,10 +324,10 @@ LOG_LEVEL=INFO
 │   │
 │   ├── clients/
 │   │   ├── base.py                # Абстракция LLM клиента
-│   │   ├── anthropic_client.py    # Claude (платный)
-│   │   ├── groq_client.py         # Groq (бесплатный)
-│   │   ├── openrouter_client.py   # OpenRouter (бесплатный)
+│   │   ├── groq_client.py         # Groq (бесплатный, быстрый)
+│   │   ├── deepseek_client.py     # DeepSeek (бесплатный 5M/month)
 │   │   ├── zhipu_client.py        # Zhipu/GLM (free tier)
+│   │   ├── anthropic_client.py    # Claude (платный)
 │   │   └── factory.py             # Фабрика клиентов
 │   │
 │   ├── core/
@@ -375,83 +354,11 @@ LOG_LEVEL=INFO
 │   │
 │   └── logs/
 │       ├── conversations/         # Логи диалогов (JSONL)
-│       │   └── 2026-01-29.jsonl
+│       │   └── 2026-02-05.jsonl
 │       └── improvements/          # Логи улучшений
-│           └── 2026-01-29.jsonl
+│           └── 2026-02-05.jsonl
 │
 └── tests/
-```
-
-## Форматы данных
-
-### Версия промпта (YAML)
-
-```yaml
-version: 2
-created_at: "2026-01-29T14:22:15Z"
-parent_version: 1
-
-improvement:
-  trigger: "user_feedback"
-  feedback_summary: "Ответы слишком длинные"
-  hypothesis_ids: ["H1"]
-  analyzer_confidence: 0.85
-
-changes:
-  - section: "## Formatting"
-    change_type: "modify"
-    description: "Добавлено ограничение на длину ответов"
-    hypothesis_id: "H1"
-
-system_prompt: |
-  You are a helpful AI assistant...
-  [полный текст промпта]
-
-metrics:
-  sessions_count: 15
-  positive_feedback_rate: 0.8
-  negative_feedback_rate: 0.1
-
-metadata:
-  author: "versioner_agent"
-  approved: false
-```
-
-### Лог диалога (JSONL)
-
-```json
-{
-  "timestamp": "2026-01-29T14:22:15.123Z",
-  "session_id": "sess_abc123",
-  "turn_id": 1,
-  "type": "turn",
-  "user_message": "Напиши функцию сортировки",
-  "assistant_response": "Вот функция...",
-  "prompt_version": 2,
-  "model": "claude-opus-4-5-20251101",
-  "tokens": {"input": 150, "output": 420},
-  "latency_ms": 1250,
-  "feedback": null
-}
-```
-
-### Лог с фидбеком
-
-```json
-{
-  "timestamp": "2026-01-29T14:23:45.456Z",
-  "session_id": "sess_abc123",
-  "turn_id": 2,
-  "user_message": "Слишком длинно",
-  "assistant_response": "Понял...",
-  "feedback": {
-    "type": "negative",
-    "category": "verbosity",
-    "raw_text": "Слишком длинно",
-    "confidence": 0.92,
-    "triggered_improvement": true
-  }
-}
 ```
 
 ## Детекция фидбека
@@ -486,7 +393,7 @@ metadata:
 
 `FeedbackDetector` анализирует каждое сообщение:
 - Паттерн-матчинг (быстро)
-- LLM fallback для неясных случаев (Haiku)
+- LLM fallback для неясных случаев
 
 ### 2. Анализ (Analyzer Agent)
 
@@ -547,76 +454,6 @@ ruff check src/
 ruff format src/
 ```
 
-## Расширение
-
-### Добавление нового провайдера
-
-1. Создайте клиент в `src/agent/clients/`:
-
-```python
-from .base import BaseLLMClient, LLMResponse
-
-class MyClient(BaseLLMClient):
-    provider = "myprovider"
-
-    # Список поддерживаемых моделей
-    MODELS = {
-        "my-model": "provider/actual-model-id",
-        "my-alias": "provider/my-model",
-    }
-
-    @classmethod
-    def list_models(cls) -> list[str]:
-        return list(cls.MODELS.keys())
-
-    def chat(self, messages, system=None, max_tokens=4096, tools=None):
-        # Реализация синхронного API вызова
-        pass
-
-    def stream(self, messages, system=None, max_tokens=4096):
-        # Реализация стриминга (async generator)
-        pass
-```
-
-2. Добавьте маппинг в `factory.py`:
-
-```python
-# В MODEL_PROVIDERS
-MODEL_PROVIDERS["my-model"] = "myprovider"
-MODEL_PROVIDERS["my-alias"] = "myprovider"
-
-# В create_client()
-elif provider == "myprovider":
-    from .my_client import MyClient
-    return MyClient(api_key=..., model=model)
-
-# В get_available_models() и get_free_models()
-```
-
-3. Добавьте в `__init__.py`:
-
-```python
-from .my_client import MyClient
-```
-
-### Добавление инструментов агентам
-
-Инструменты описываются в формате Anthropic tool_use:
-
-```python
-TOOLS = [
-    {
-        "name": "my_tool",
-        "description": "Description",
-        "input_schema": {
-            "type": "object",
-            "properties": {...},
-            "required": [...]
-        }
-    }
-]
-```
-
 ## Docker
 
 ### Команды
@@ -643,42 +480,23 @@ docker compose up -d
 docker compose down
 ```
 
-### Переменные окружения
-
-Все настройки через `.env` или переменные:
-
-```bash
-docker run -it --rm \
-  -e GROQ_API_KEY=gsk_xxx \
-  -e DEFAULT_MODEL=llama-3.3-70b \
-  -v $(pwd)/data:/app/data \
-  self-improving-agent
-```
-
 ## Статус провайдеров (февраль 2026)
 
 | Провайдер | Статус | Лучшие модели | Примечание |
 |-----------|--------|---------------|------------|
-| **Groq** | ✅ Работает | `llama-3.3-70b`, `llama-4-maverick`, `qwen3-32b` | Рекомендуется, 14,400 req/day, полный функционал |
-| **OpenRouter** | ⚠️ Rate limits | `deepseek-r1`, `llama-3.1-405b` | Free tier ограничен, полный функционал |
-| **Zhipu AI** | ⚠️ Rate limits | `glm-4.7`, `glm-4.5-air` | Нужен баланс, полный функционал |
-| **Anthropic** | 💰 Платный | `claude-opus-4.5`, `claude-sonnet` | Лучшее качество для сложных задач |
+| **Groq** | ✅ Работает | `llama-4-maverick`, `llama-3.3-70b` | Рекомендуется, 14,400 req/day |
+| **DeepSeek** | ✅ Работает | `deepseek-chat`, `deepseek-reasoner` | 5M токенов/месяц бесплатно |
+| **Zhipu AI** | ⚠️ Rate limits | `glm-4.7`, `glm-4.5-air` | Строгий лимит на free tier |
+| **Anthropic** | 💰 Платный | `claude-opus-4.5`, `claude-sonnet` | Лучшее качество |
 
 ### Рекомендуемая конфигурация
 
 ```bash
 # Полностью бесплатно (все функции!)
 GROQ_API_KEY=gsk_...
-DEFAULT_MODEL=llama-3.3-70b
+DEFAULT_MODEL=llama-4-maverick
 ANALYZER_MODEL=llama-3.3-70b
 VERSIONER_MODEL=llama-3.3-70b
-
-# Гибридная (бесплатно + лучшее качество анализа)
-GROQ_API_KEY=gsk_...
-ANTHROPIC_API_KEY=sk-ant-...
-DEFAULT_MODEL=llama-3.3-70b
-ANALYZER_MODEL=claude-sonnet
-VERSIONER_MODEL=claude-sonnet
 ```
 
 ## Лицензия

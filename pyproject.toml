@@ -1,6 +1,6 @@
 [project]
 name = "self-improving-agent"
-version = "0.2.0"
+version = "0.3.0"
 description = "Self-improving AI agent that evolves through feedback. Supports free models (Groq, OpenRouter, Zhipu) and Anthropic Claude."
 requires-python = ">=3.12"
 dependencies = [

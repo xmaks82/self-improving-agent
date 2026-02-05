@@ -14,24 +14,18 @@ class ZhipuClient(BaseLLMClient):
     supports_streaming = True
     supports_tools = True
 
-    # Available GLM models (January 2026)
-    # Note: Free tier has strict rate limits (1113 error)
+    # Available GLM models (February 2026)
+    # Note: Free tier has strict rate limits
     MODELS = {
         # GLM 4.7 - newest
         "glm-4.7": "glm-4.7",
 
-        # GLM 4.5 series
+        # GLM 4.5 - balanced
         "glm-4.5-air": "glm-4.5-air",
-        "glm-4.5-airx": "glm-4.5-airx",
         "glm-4.5-flash": "glm-4.5-flash",
-        "glm-4.5": "glm-4.5-air",
 
-        # GLM 4 Plus
+        # GLM 4 Plus - powerful
         "glm-4-plus": "glm-4-plus",
-        "glm-4": "glm-4-plus",
-
-        # Aliases
-        "glm": "glm-4.7",
     }
 
     def __init__(self, api_key: Optional[str] = None, model: str = "glm-4"):

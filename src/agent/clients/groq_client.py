@@ -24,35 +24,23 @@ class GroqClient(BaseLLMClient):
     supports_streaming = True
     supports_tools = True
 
-    # Available models (January 2026)
+    # Available models (February 2026)
     MODELS = {
-        # Llama 3.3 - best quality
-        "llama-3.3-70b": "llama-3.3-70b-versatile",
-        "llama-3.3": "llama-3.3-70b-versatile",
-
-        # Llama 4 - newest!
+        # Llama 4 - newest (preview)
         "llama-4-maverick": "meta-llama/llama-4-maverick-17b-128e-instruct",
         "llama-4-scout": "meta-llama/llama-4-scout-17b-16e-instruct",
-        "llama-4": "meta-llama/llama-4-maverick-17b-128e-instruct",
 
-        # Llama 3.1
-        "llama-3.1-8b": "llama-3.1-8b-instant",
+        # Llama 3.3 - production, proven quality
+        "llama-3.3-70b": "llama-3.3-70b-versatile",
 
-        # Qwen 3
+        # Qwen 3 - thinking mode (preview)
         "qwen3-32b": "qwen/qwen3-32b",
-        "qwen3": "qwen/qwen3-32b",
 
-        # Kimi K2 - Moonshot AI
-        "kimi-k2": "moonshotai/kimi-k2-instruct",
+        # Kimi K2 - Moonshot AI (preview)
+        "kimi-k2": "moonshotai/kimi-k2-instruct-0905",
 
         # GPT-OSS - OpenAI open source
         "gpt-oss-120b": "openai/gpt-oss-120b",
-        "gpt-oss-20b": "openai/gpt-oss-20b",
-        "gpt-oss": "openai/gpt-oss-120b",
-
-        # Full names
-        "llama-3.3-70b-versatile": "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant": "llama-3.1-8b-instant",
     }
 
     def __init__(self, api_key: Optional[str] = None, model: str = "llama-3.3-70b"):
@@ -212,10 +200,10 @@ class GroqClient(BaseLLMClient):
     def list_models(cls) -> list[str]:
         """List available model shortcuts."""
         return [
-            "llama-3.3-70b",      # Best overall
-            "llama-4-maverick",   # Newest Llama 4
-            "llama-4-scout",      # Llama 4 smaller
-            "qwen3-32b",          # Qwen 3
-            "kimi-k2",            # Moonshot AI
-            "gpt-oss-120b",       # OpenAI OSS
+            "llama-4-maverick",     # Newest Llama 4 (128 experts)
+            "llama-4-scout",        # Llama 4 fast (16 experts)
+            "llama-3.3-70b",        # Production, proven quality
+            "qwen3-32b",            # Qwen 3 thinking mode
+            "kimi-k2",              # Moonshot AI
+            "gpt-oss-120b",         # OpenAI OSS
         ]

@@ -4,7 +4,7 @@ from .base import BaseLLMClient, LLMResponse, LLMToolResponse, ToolCall, ToolRes
 from .anthropic_client import AnthropicClient
 from .zhipu_client import ZhipuClient
 from .groq_client import GroqClient
-from .openrouter_client import OpenRouterClient
+from .deepseek_client import DeepSeekClient
 from .factory import create_client, get_available_models, get_free_models
 
 __all__ = [
@@ -16,7 +16,7 @@ __all__ = [
     "AnthropicClient",
     "ZhipuClient",
     "GroqClient",
-    "OpenRouterClient",
+    "DeepSeekClient",
     "create_client",
     "get_available_models",
     "get_free_models",
