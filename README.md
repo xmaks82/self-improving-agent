@@ -110,7 +110,7 @@ agent
 # Groq - рекомендуется (бесплатно, быстро)
 GROQ_API_KEY=gsk_...          # https://console.groq.com/
 
-# DeepSeek (платно, ~$0.14/1M tokens)
+# DeepSeek - 5M токенов бесплатно (30 дней), потом ~$0.28/1M
 DEEPSEEK_API_KEY=sk-...       # https://platform.deepseek.com/
 
 # Zhipu AI (glm-4.5-flash бесплатно, остальные платно)
@@ -275,6 +275,13 @@ Human-in-the-loop система:
 | Llama 3.3 70B | `llama-3.3-70b` |
 | Qwen3 32B | `qwen3-32b` |
 
+#### DeepSeek (5M токенов / 30 дней)
+
+| Модель | ID |
+|--------|-----|
+| DeepSeek V3.2 | `deepseek-chat` |
+| DeepSeek R1 | `deepseek-reasoner` |
+
 #### Zhipu AI
 
 | Модель | ID |
@@ -282,13 +289,6 @@ Human-in-the-loop система:
 | GLM 4.5 Flash | `glm-4.5-flash` |
 
 ### 💰 Платные
-
-#### DeepSeek
-
-| Модель | ID |
-|--------|-----|
-| DeepSeek V3.2 | `deepseek-chat` |
-| DeepSeek R1 | `deepseek-reasoner` |
 
 #### Zhipu AI
 
