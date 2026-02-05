@@ -258,4 +258,4 @@ class DeepSeekClient(BaseLLMClient):
     @classmethod
     def list_models(cls) -> list[str]:
         """List available model shortcuts."""
-        return ["deepseek-chat", "deepseek-reasoner"]
+        return ["deepseek-chat", "deepseek-v3", "deepseek-reasoner", "deepseek-r1"]
