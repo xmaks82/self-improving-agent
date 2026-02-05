@@ -482,12 +482,15 @@ ruff format src/
 ### Команды
 
 ```bash
-make build    # Собрать образ
+make help     # Показать все команды
 make run      # Запустить агента (интерактивно)
+make build    # Собрать образ
+make update   # Обновить агент (git pull + rebuild)
+make version  # Показать текущую версию
 make stop     # Остановить
-make logs     # Логи
+make logs     # Логи контейнера
 make shell    # Shell в контейнере
-make clean    # Удалить всё
+make clean    # Удалить контейнеры и образы
 ```
 
 ### Docker Compose
