@@ -112,6 +112,9 @@ GROQ_API_KEY=gsk_...          # https://console.groq.com/
 
 # DeepSeek - 5M токенов/месяц бесплатно
 DEEPSEEK_API_KEY=sk-...       # https://platform.deepseek.com/
+
+# Zhipu AI - бесплатный тариф с лимитами
+ZHIPU_API_KEY=...             # https://open.bigmodel.cn/
 ```
 
 > ✅ Достаточно одного Groq ключа для полного функционала!
@@ -278,6 +281,15 @@ Human-in-the-loop система:
 |--------|-----|
 | DeepSeek V3.2 | `deepseek-chat` |
 | DeepSeek R1 | `deepseek-reasoner` |
+
+#### Zhipu AI
+
+| Модель | ID |
+|--------|-----|
+| GLM 4.7 | `glm-4.7` |
+| GLM 4.5 Air | `glm-4.5-air` |
+| GLM 4.5 Flash | `glm-4.5-flash` |
+| GLM 4 Plus | `glm-4-plus` |
 
 ### 💰 Платные
 
