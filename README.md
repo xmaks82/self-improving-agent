@@ -126,7 +126,7 @@ DEEPSEEK_API_KEY=sk-...       # https://platform.deepseek.com/
 | `/model [NAME]` | Показать/сменить модель |
 | `/quit` | Выход |
 
-### Задачи (Phase 1)
+### Задачи
 
 | Команда | Описание |
 |---------|----------|
@@ -137,7 +137,7 @@ DEEPSEEK_API_KEY=sk-...       # https://platform.deepseek.com/
 | `/task delete ID` | Удалить задачу |
 | `/task clear` | Очистить завершённые |
 
-### MCP и инструменты (Phase 2)
+### MCP и инструменты
 
 | Команда | Описание |
 |---------|----------|
@@ -300,42 +300,42 @@ src/agent/
 │   ├── main_agent.py
 │   ├── analyzer.py
 │   ├── versioner.py
-│   ├── orchestrator.py  # NEW: координация
-│   ├── sub_agent.py     # NEW: базовый под-агент
-│   ├── code_reviewer.py # NEW
-│   ├── test_writer.py   # NEW
-│   ├── debugger.py      # NEW
-│   ├── researcher.py    # NEW
-│   └── refactorer.py    # NEW
+│   ├── orchestrator.py
+│   ├── sub_agent.py
+│   ├── code_reviewer.py
+│   ├── test_writer.py
+│   ├── debugger.py
+│   ├── researcher.py
+│   └── refactorer.py
 │
-├── planning/            # NEW: Phase 1
+├── planning/            # Задачи
 │   ├── task.py
 │   └── manager.py
 │
-├── mcp/                 # NEW: Phase 2
+├── mcp/                 # Model Context Protocol
 │   ├── client.py
 │   ├── registry.py
 │   ├── tools.py
 │   └── manager.py
 │
-├── tools/               # Phase 3 & 7
+├── tools/               # Инструменты
 │   ├── base.py
 │   ├── filesystem.py
 │   ├── shell.py
 │   ├── git.py
 │   ├── search.py
-│   ├── web_search.py    # NEW
-│   ├── web_fetch.py     # NEW
+│   ├── web_search.py
+│   ├── web_fetch.py
 │   └── registry.py
 │
-├── memory/              # NEW: Phase 4
+├── memory/              # Память
 │   ├── types.py
 │   ├── store.py
 │   ├── retriever.py
 │   ├── consolidator.py
 │   └── manager.py
 │
-├── approval/            # NEW: Phase 6
+├── approval/            # Human-in-the-loop
 │   ├── diff_viewer.py
 │   ├── confirmator.py
 │   ├── dry_run.py
@@ -373,7 +373,7 @@ VERSIONER_MODEL=llama-3.3-70b
 
 ## Версии
 
-- **v1.0.0** — Полный agentic функционал (все 7 фаз)
+- **v1.0.0** — Полный agentic функционал
 - **v0.3.0** — DeepSeek интеграция, rate limit fallback
 - **v0.2.0** — Multi-provider support
 - **v0.1.0** — Initial release
