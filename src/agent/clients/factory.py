@@ -32,6 +32,15 @@ MODEL_PROVIDERS = {
     "glm-4.5-flash": "zhipu",
     "glm-4-plus": "zhipu",
     "glm": "zhipu",
+
+    # === SAMBANOVA (free, ultra-fast 580 t/s) ===
+    "sambanova": "sambanova",
+    "samba-llama-70b": "sambanova",
+    "samba-llama-8b": "sambanova",
+    "samba-deepseek": "sambanova",
+    "deepseek-r1-70b": "sambanova",
+    "deepseek-v3": "sambanova",
+    "qwq-32b": "sambanova",
 }
 
 
@@ -44,12 +53,14 @@ def get_provider(model: str) -> str:
     # Check prefix
     if model.startswith("claude"):
         return "anthropic"
-    if model.startswith("llama-4") or model.startswith("qwen") or model.startswith("kimi") or model.startswith("gpt-oss"):
+    if model.startswith("llama-4") or model.startswith("kimi") or model.startswith("gpt-oss"):
         return "groq"
     if model.startswith("llama3.1") or model.startswith("cerebras"):
         return "cerebras"
     if model.startswith("glm") or model.startswith("codegeex"):
         return "zhipu"
+    if model.startswith("samba") or model.startswith("Meta-Llama") or model.startswith("DeepSeek") or model.startswith("Qwen"):
+        return "sambanova"
 
     # Default to groq (most reliable free)
     return "groq"
@@ -61,6 +72,7 @@ def create_client(
     groq_api_key: Optional[str] = None,
     cerebras_api_key: Optional[str] = None,
     zhipu_api_key: Optional[str] = None,
+    sambanova_api_key: Optional[str] = None,
 ) -> BaseLLMClient:
     """
     Create an LLM client for the specified model.
@@ -102,6 +114,13 @@ def create_client(
             model=model,
         )
 
+    elif provider == "sambanova":
+        from .sambanova_client import SambanovaClient
+        return SambanovaClient(
+            api_key=sambanova_api_key or os.getenv("SAMBANOVA_API_KEY"),
+            model=model,
+        )
+
     else:
         raise ValueError(f"Unknown provider for model: {model}")
 
@@ -112,12 +131,14 @@ def get_available_models() -> dict[str, list[str]]:
     from .groq_client import GroqClient
     from .cerebras_client import CerebrasClient
     from .zhipu_client import ZhipuClient
+    from .sambanova_client import SambanovaClient
 
     return {
         "anthropic": AnthropicClient.list_models(),
         "groq": GroqClient.list_models(),
         "cerebras": CerebrasClient.list_models(),
         "zhipu": ZhipuClient.list_models(),
+        "sambanova": SambanovaClient.list_models(),
     }
 
 
@@ -126,11 +147,13 @@ def get_free_models() -> dict[str, list[str]]:
     from .groq_client import GroqClient
     from .cerebras_client import CerebrasClient
     from .zhipu_client import ZhipuClient
+    from .sambanova_client import SambanovaClient
 
     return {
         "groq (free, fast)": GroqClient.list_models(),
         "cerebras (free 1M/day, ultra-fast)": CerebrasClient.list_models(),
         "zhipu (free tier)": ZhipuClient.list_models(),
+        "sambanova (free, 580 t/s)": SambanovaClient.list_models(),
     }
 
 
@@ -164,6 +187,7 @@ def get_fallback_models(current_model: str) -> list[str]:
         "groq": ["llama-3.3-70b", "llama-4-maverick"],
         "cerebras": ["llama3.1-8b"],
         "zhipu": ["glm-4.5-flash"],
+        "sambanova": ["samba-llama-70b", "samba-llama-8b"],
         "anthropic": ["claude-haiku", "claude-sonnet"],
     }
 
@@ -175,11 +199,13 @@ def get_fallback_models(current_model: str) -> list[str]:
         available_providers.append("cerebras")
     if os.getenv("ZHIPU_API_KEY"):
         available_providers.append("zhipu")
+    if os.getenv("SAMBANOVA_API_KEY"):
+        available_providers.append("sambanova")
     if os.getenv("ANTHROPIC_API_KEY"):
         available_providers.append("anthropic")
 
-    # Priority order: groq -> cerebras -> zhipu -> anthropic
-    priority_order = ["groq", "cerebras", "zhipu", "anthropic"]
+    # Priority order: sambanova (fastest) -> groq -> cerebras -> zhipu -> anthropic
+    priority_order = ["sambanova", "groq", "cerebras", "zhipu", "anthropic"]
 
     for provider in priority_order:
         if provider not in available_providers:
