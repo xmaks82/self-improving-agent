@@ -279,8 +279,7 @@ Human-in-the-loop система:
 
 | Модель | ID |
 |--------|-----|
-| Llama 3.1 70B | `llama-3.1-70b` |
-| Llama 3.1 8B | `llama-3.1-8b` |
+| Llama 3.1 8B | `llama3.1-8b` |
 
 #### Zhipu AI
 
