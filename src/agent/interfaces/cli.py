@@ -52,12 +52,12 @@ class AgentCLI:
     async def run(self):
         """Main CLI loop."""
         console.print(Panel(
-            "[bold blue]Self-Improving AI Agent[/bold blue]\n"
+            "[bold cyan]Self-Improving AI Agent[/bold cyan]\n"
             "Type your message or /help for commands\n"
-            f"Model: [cyan]{self.main_agent.model}[/cyan] ({self.main_agent.provider})\n"
+            f"Model: [bright_white]{self.main_agent.model}[/bright_white] ({self.main_agent.provider})\n"
             f"Prompt version: v{self.prompt_manager.current_version('main_agent')}",
             title="Welcome",
-            border_style="blue",
+            border_style="cyan",
         ))
 
         while True:
@@ -238,7 +238,7 @@ class AgentCLI:
         console.print(Panel(
             Markdown(f"```\n{prompt}\n```"),
             title=f"Current System Prompt (v{version})",
-            border_style="blue",
+            border_style="cyan",
         ))
 
     def _show_versions(self):
@@ -359,7 +359,7 @@ class AgentCLI:
                 console.print(Panel(
                     content[:500] + ("..." if len(content) > 500 else ""),
                     title=f"[{i+1}] You",
-                    border_style="blue",
+                    border_style="cyan",
                 ))
             else:
                 console.print(Panel(
