@@ -1,10 +1,11 @@
 """OpenRouter API client - aggregator with many free models."""
 
 from typing import AsyncIterator, Optional
+import json
 import os
 import httpx
 
-from .base import BaseLLMClient, LLMResponse
+from .base import BaseLLMClient, LLMResponse, LLMToolResponse, ToolCall, ToolResult
 
 
 class OpenRouterClient(BaseLLMClient):
@@ -107,7 +108,7 @@ class OpenRouterClient(BaseLLMClient):
         }
 
         if tools:
-            payload["tools"] = self._convert_tools(tools)
+            payload["tools"] = self._convert_tools_to_openai(tools)
 
         response = self.client.post(
             f"{self.API_BASE}/chat/completions",
@@ -162,26 +163,84 @@ class OpenRouterClient(BaseLLMClient):
                     if data == "[DONE]":
                         break
                     try:
-                        import json
                         chunk = json.loads(data)
-                        if chunk["choices"] and chunk["choices"][0]["delta"].get("content"):
+                        if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
                             yield chunk["choices"][0]["delta"]["content"]
-                    except:
+                    except (json.JSONDecodeError, KeyError, IndexError, TypeError):
                         continue
 
-    def _convert_tools(self, tools: list[dict]) -> list[dict]:
-        """Convert Anthropic tool format to OpenAI format."""
-        converted = []
-        for tool in tools:
-            converted.append({
-                "type": "function",
-                "function": {
-                    "name": tool["name"],
-                    "description": tool.get("description", ""),
-                    "parameters": tool.get("input_schema", {}),
-                }
+    def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        system: Optional[str] = None,
+        max_tokens: int = 4096,
+    ) -> LLMToolResponse:
+        """Chat with tools via OpenRouter API."""
+        formatted_messages = []
+
+        if system:
+            formatted_messages.append({
+                "role": "system",
+                "content": system,
             })
-        return converted
+
+        formatted_messages.extend(messages)
+
+        payload = {
+            "model": self.model,
+            "messages": formatted_messages,
+            "max_tokens": max_tokens,
+            "tools": self._convert_tools_to_openai(tools),
+        }
+
+        response = self.client.post(
+            f"{self.API_BASE}/chat/completions",
+            headers=self._headers(),
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        message = data["choices"][0]["message"]
+        content = message.get("content") or ""
+        tool_calls = []
+
+        if message.get("tool_calls"):
+            for tc in message["tool_calls"]:
+                try:
+                    input_data = json.loads(tc["function"]["arguments"])
+                except (json.JSONDecodeError, KeyError):
+                    input_data = {}
+
+                tool_calls.append(ToolCall(
+                    id=tc["id"],
+                    name=tc["function"]["name"],
+                    input=input_data,
+                ))
+
+        usage = data.get("usage", {})
+
+        result = LLMToolResponse(
+            content=content,
+            tool_calls=tool_calls,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            model=self.model,
+            stop_reason=data["choices"][0].get("finish_reason"),
+        )
+        result._raw_response = data
+        return result
+
+    def format_tool_results(
+        self,
+        tool_response: LLMToolResponse,
+        tool_results: list[ToolResult],
+    ) -> tuple[dict, list[dict]]:
+        """Format tool results for OpenAI conversation format."""
+        return self._format_openai_tool_results(
+            tool_response._raw_response, tool_results, response_is_dict=True
+        )
 
     def get_model_name(self) -> str:
         return self.model

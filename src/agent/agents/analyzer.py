@@ -4,8 +4,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 import json
 
-from anthropic import Anthropic
-
+from ..clients.base import BaseLLMClient, ToolCall, ToolResult
 from ..storage.prompts import PromptManager
 from ..storage.logs import LogManager
 from ..core.feedback import Feedback
@@ -46,6 +45,7 @@ class AnalyzerAgent:
     Agent for analyzing conversation logs and formulating improvement hypotheses.
 
     Uses tools to search logs and submit structured analysis.
+    Supports any LLM provider via BaseLLMClient abstraction.
     """
 
     TOOLS = [
@@ -161,7 +161,7 @@ class AnalyzerAgent:
 
     def __init__(
         self,
-        client: Anthropic,
+        client: BaseLLMClient,
         prompt_manager: PromptManager,
         log_manager: LogManager,
         model: Optional[str] = None,
@@ -228,31 +228,34 @@ Focus on:
         analysis_result = None
         raw_analysis = ""
 
-        # Agentic loop
+        # Agentic loop using unified client interface
         while True:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=4096,
-                system=system_prompt,
-                tools=self.TOOLS,
+            response = self.client.chat_with_tools(
                 messages=messages,
+                tools=self.TOOLS,
+                system=system_prompt,
+                max_tokens=4096,
             )
 
             # Collect text content
-            for block in response.content:
-                if hasattr(block, "text"):
-                    raw_analysis += block.text
+            raw_analysis += response.content
 
-            # Check for tool use
-            if response.stop_reason == "tool_use":
-                tool_results = await self._execute_tools(response.content)
-                messages.append({"role": "assistant", "content": response.content})
-                messages.append({"role": "user", "content": tool_results})
+            # Check for tool calls
+            if response.has_tool_calls:
+                # Execute tools and get results
+                tool_results = await self._execute_tools(response.tool_calls)
+
+                # Format messages using client's format
+                assistant_msg, tool_msgs = self.client.format_tool_results(
+                    response, tool_results
+                )
+                messages.append(assistant_msg)
+                messages.extend(tool_msgs)
 
                 # Check if submit_analysis was called
-                for block in response.content:
-                    if block.type == "tool_use" and block.name == "submit_analysis":
-                        analysis_result = self._parse_analysis(block.input, raw_analysis)
+                for tc in response.tool_calls:
+                    if tc.name == "submit_analysis":
+                        analysis_result = self._parse_analysis(tc.input, raw_analysis)
                         break
 
                 if analysis_result:
@@ -285,25 +288,16 @@ Focus on:
 
         return summary
 
-    async def _execute_tools(self, content: list) -> list:
-        """Execute tool calls and return results."""
+    async def _execute_tools(self, tool_calls: list[ToolCall]) -> list[ToolResult]:
+        """Execute tool calls and return unified results."""
         results = []
 
-        for block in content:
-            if block.type != "tool_use":
-                continue
-
-            tool_name = block.name
-            tool_input = block.input
-            tool_id = block.id
-
-            result = await self._execute_tool(tool_name, tool_input)
-
-            results.append({
-                "type": "tool_result",
-                "tool_use_id": tool_id,
-                "content": json.dumps(result, ensure_ascii=False),
-            })
+        for tc in tool_calls:
+            result = await self._execute_tool(tc.name, tc.input)
+            results.append(ToolResult(
+                tool_call_id=tc.id,
+                content=json.dumps(result, ensure_ascii=False),
+            ))
 
         return results
 

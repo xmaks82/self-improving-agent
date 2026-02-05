@@ -52,7 +52,7 @@ class ThresholdConfig:
 @dataclass
 class PathConfig:
     """Path configuration."""
-    base: Path = field(default_factory=lambda: Path("/var/www/agent"))
+    base: Path = field(default_factory=lambda: Path(os.getenv("AGENT_BASE_PATH", "/var/www/agent")))
 
     @property
     def data(self) -> Path:

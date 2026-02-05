@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 import json
 
-from anthropic import Anthropic
-
+from ..clients.base import BaseLLMClient, ToolCall, ToolResult
+from ..core.orchestrator import VersioningError
 from .analyzer import AnalysisResult
 from ..storage.prompts import PromptManager
 from ..config import config
@@ -35,6 +35,7 @@ class VersionerAgent:
     Agent for generating improved system prompts based on analysis.
 
     Uses tools to read prompts, validate changes, and create new versions.
+    Supports any LLM provider via BaseLLMClient abstraction.
     """
 
     TOOLS = [
@@ -122,7 +123,7 @@ class VersionerAgent:
 
     def __init__(
         self,
-        client: Anthropic,
+        client: BaseLLMClient,
         prompt_manager: PromptManager,
         model: Optional[str] = None,
     ):
@@ -203,25 +204,30 @@ Remember:
 
         new_version = None
 
-        # Agentic loop
+        # Agentic loop using unified client interface
         while True:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=8192,
-                system=system_prompt,
-                tools=self.TOOLS,
+            response = self.client.chat_with_tools(
                 messages=messages,
+                tools=self.TOOLS,
+                system=system_prompt,
+                max_tokens=8192,
             )
 
-            if response.stop_reason == "tool_use":
-                tool_results = await self._execute_tools(response.content, agent_name)
-                messages.append({"role": "assistant", "content": response.content})
-                messages.append({"role": "user", "content": tool_results})
+            if response.has_tool_calls:
+                # Execute tools and get results
+                tool_results = await self._execute_tools(response.tool_calls, agent_name)
+
+                # Format messages using client's format
+                assistant_msg, tool_msgs = self.client.format_tool_results(
+                    response, tool_results
+                )
+                messages.append(assistant_msg)
+                messages.extend(tool_msgs)
 
                 # Check if create_prompt_version was called
-                for block in response.content:
-                    if block.type == "tool_use" and block.name == "create_prompt_version":
-                        new_version = await self._save_version(block.input, analysis_result)
+                for tc in response.tool_calls:
+                    if tc.name == "create_prompt_version":
+                        new_version = await self._save_version(tc.input, analysis_result)
                         break
 
                 if new_version:
@@ -235,25 +241,16 @@ Remember:
 
         return new_version
 
-    async def _execute_tools(self, content: list, target_agent: str) -> list:
-        """Execute tool calls and return results."""
+    async def _execute_tools(self, tool_calls: list[ToolCall], target_agent: str) -> list[ToolResult]:
+        """Execute tool calls and return unified results."""
         results = []
 
-        for block in content:
-            if block.type != "tool_use":
-                continue
-
-            tool_name = block.name
-            tool_input = block.input
-            tool_id = block.id
-
-            result = await self._execute_tool(tool_name, tool_input, target_agent)
-
-            results.append({
-                "type": "tool_result",
-                "tool_use_id": tool_id,
-                "content": json.dumps(result, ensure_ascii=False),
-            })
+        for tc in tool_calls:
+            result = await self._execute_tool(tc.name, tc.input, target_agent)
+            results.append(ToolResult(
+                tool_call_id=tc.id,
+                content=json.dumps(result, ensure_ascii=False),
+            ))
 
         return results
 
@@ -381,8 +378,3 @@ Remember:
     async def process(self, message: str):
         """Not used directly - use improve() instead."""
         raise NotImplementedError("Use improve() method instead")
-
-
-class VersioningError(Exception):
-    """Error during prompt versioning."""
-    pass

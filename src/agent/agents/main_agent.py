@@ -147,7 +147,6 @@ class MainAgent(BaseAgent):
         """
         try:
             # Import here to avoid circular imports
-            from anthropic import Anthropic
             from ..core.orchestrator import ImprovementOrchestrator
             from ..agents.analyzer import AnalyzerAgent
             from ..agents.versioner import VersionerAgent
@@ -155,17 +154,19 @@ class MainAgent(BaseAgent):
             # Get recent logs for analysis
             recent_logs = await self.log_manager.get_recent(limit=50)
 
-            # Analyzer and Versioner use Anthropic for tool_use support
-            anthropic_client = Anthropic()
+            # Create clients for analyzer and versioner using factory
+            # This allows using any provider that supports tools (Anthropic, Groq, OpenRouter, Zhipu)
+            analyzer_client = create_client(config.models.analyzer)
+            versioner_client = create_client(config.models.versioner)
 
             analyzer = AnalyzerAgent(
-                client=anthropic_client,
+                client=analyzer_client,
                 prompt_manager=self.prompt_manager,
                 log_manager=self.log_manager,
                 model=config.models.analyzer,
             )
             versioner = VersionerAgent(
-                client=anthropic_client,
+                client=versioner_client,
                 prompt_manager=self.prompt_manager,
                 model=config.models.versioner,
             )

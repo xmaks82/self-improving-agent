@@ -112,7 +112,7 @@ class LogManager:
         elif date_range == "last_month":
             start_date = today - timedelta(days=30)
         else:  # "all"
-            start_date = date(2020, 1, 1)
+            start_date = date.min
 
         files = []
         for file_path in sorted(self.conversations_path.glob("*.jsonl"), reverse=True):
@@ -230,9 +230,20 @@ class LogManager:
         date_range: str = "last_week",
     ) -> list[dict]:
         """Synchronous version of get_recent for non-async contexts."""
-        return asyncio.get_event_loop().run_until_complete(
-            self.get_recent(limit, feedback_type, date_range)
-        )
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop - use asyncio.run()
+            return asyncio.run(self.get_recent(limit, feedback_type, date_range))
+        else:
+            # There's a running loop - create a new one in a thread
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(
+                    asyncio.run,
+                    self.get_recent(limit, feedback_type, date_range)
+                )
+                return future.result()
 
     async def get_feedback_stats(self, date_range: str = "last_week") -> dict:
         """Get statistics about feedback."""

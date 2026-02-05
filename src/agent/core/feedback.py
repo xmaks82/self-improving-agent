@@ -2,12 +2,15 @@
 
 from dataclasses import dataclass, asdict
 from typing import Optional
+import logging
 import re
 import json
 
 from anthropic import Anthropic
 
 from ..config import config
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -239,9 +242,9 @@ If it's NOT feedback about the AI's previous response, set is_feedback to false.
                     triggered_improvement=data.get("type") == "negative",
                 )
 
-        except Exception:
-            # Fallback - if LLM fails, don't block
-            pass
+        except Exception as e:
+            # Fallback - if LLM fails, don't block but log the error
+            logger.warning(f"LLM feedback detection failed: {e}")
 
         return None
 

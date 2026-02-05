@@ -1,6 +1,7 @@
 """Groq API client - free tier with very fast inference."""
 
 from typing import AsyncIterator, Optional
+import json
 import os
 
 try:
@@ -8,7 +9,7 @@ try:
 except ImportError:
     Groq = None
 
-from .base import BaseLLMClient, LLMResponse
+from .base import BaseLLMClient, LLMResponse, LLMToolResponse, ToolCall, ToolResult
 
 
 class GroqClient(BaseLLMClient):
@@ -95,7 +96,7 @@ class GroqClient(BaseLLMClient):
         }
 
         if tools:
-            kwargs["tools"] = self._convert_tools(tools)
+            kwargs["tools"] = self._convert_tools_to_openai(tools)
 
         response = self.client.chat.completions.create(**kwargs)
 
@@ -134,19 +135,72 @@ class GroqClient(BaseLLMClient):
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
-    def _convert_tools(self, tools: list[dict]) -> list[dict]:
-        """Convert Anthropic tool format to OpenAI format."""
-        converted = []
-        for tool in tools:
-            converted.append({
-                "type": "function",
-                "function": {
-                    "name": tool["name"],
-                    "description": tool.get("description", ""),
-                    "parameters": tool.get("input_schema", {}),
-                }
+    def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        system: Optional[str] = None,
+        max_tokens: int = 4096,
+    ) -> LLMToolResponse:
+        """Chat with tools using OpenAI format."""
+        formatted_messages = []
+
+        if system:
+            formatted_messages.append({
+                "role": "system",
+                "content": system,
             })
-        return converted
+
+        formatted_messages.extend(messages)
+
+        kwargs = {
+            "model": self.model,
+            "messages": formatted_messages,
+            "max_tokens": max_tokens,
+            "tools": self._convert_tools_to_openai(tools),
+        }
+
+        response = self.client.chat.completions.create(**kwargs)
+
+        # Extract content and tool calls
+        message = response.choices[0].message
+        content = message.content or ""
+        tool_calls = []
+
+        if message.tool_calls:
+            for tc in message.tool_calls:
+                # Arguments are JSON string in OpenAI format
+                try:
+                    input_data = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    input_data = {}
+
+                tool_calls.append(ToolCall(
+                    id=tc.id,
+                    name=tc.function.name,
+                    input=input_data,
+                ))
+
+        result = LLMToolResponse(
+            content=content,
+            tool_calls=tool_calls,
+            input_tokens=response.usage.prompt_tokens if response.usage else 0,
+            output_tokens=response.usage.completion_tokens if response.usage else 0,
+            model=self.model,
+            stop_reason=response.choices[0].finish_reason,
+        )
+        result._raw_response = response
+        return result
+
+    def format_tool_results(
+        self,
+        tool_response: LLMToolResponse,
+        tool_results: list[ToolResult],
+    ) -> tuple[dict, list[dict]]:
+        """Format tool results for OpenAI conversation format."""
+        return self._format_openai_tool_results(
+            tool_response._raw_response, tool_results, response_is_dict=False
+        )
 
     def get_model_name(self) -> str:
         return self.model

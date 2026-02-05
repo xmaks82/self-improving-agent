@@ -62,10 +62,9 @@ class AgentCLI:
 
         while True:
             try:
-                # Get user input
-                user_input = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: self.session.prompt("You: ")
+                # Get user input (using asyncio.to_thread for Python 3.9+)
+                user_input = await asyncio.to_thread(
+                    self.session.prompt, "You: "
                 )
 
                 if not user_input.strip():
@@ -305,8 +304,12 @@ class AgentCLI:
         from ..core.feedback import Feedback
 
         # Determine feedback type based on content
-        negative_words = ["плохо", "не", "ужас", "ошиб", "неправ", "bad", "wrong", "error"]
-        is_negative = any(word in args.lower() for word in negative_words)
+        # Simple heuristic for explicit feedback - patterns from FeedbackDetector
+        negative_patterns = [
+            "плохо", "ужас", "ошиб", "неправ", "некорр", "не так", "не то",
+            "bad", "wrong", "error", "incorrect", "terrible", "awful"
+        ]
+        is_negative = any(pattern in args.lower() for pattern in negative_patterns)
 
         feedback = Feedback(
             type="negative" if is_negative else "positive",
