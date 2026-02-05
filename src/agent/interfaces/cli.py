@@ -17,6 +17,7 @@ from ..storage.prompts import PromptManager
 from ..clients import get_available_models, get_free_models
 from ..clients.exceptions import RateLimitError
 from ..clients.factory import get_fallback_models
+from ..planning import TaskManager, TaskStatus
 from ..config import config
 
 
@@ -44,6 +45,7 @@ class AgentCLI:
     def __init__(self, main_agent: MainAgent, prompt_manager: PromptManager):
         self.main_agent = main_agent
         self.prompt_manager = prompt_manager
+        self.task_manager = TaskManager()
 
         # Setup prompt with history
         history_path = config.paths.base / ".agent_history"
@@ -231,6 +233,9 @@ class AgentCLI:
         elif cmd == "/status":
             self._show_improvement_status()
 
+        elif cmd in ["/tasks", "/task"]:
+            await self._handle_tasks(args)
+
         else:
             console.print(f"[red]Unknown command: {cmd}[/red]")
             console.print("Type /help for available commands.")
@@ -247,6 +252,12 @@ class AgentCLI:
             ("/quit, /exit, /q", "Exit the agent"),
             ("/help", "Show this help message"),
             ("/model [NAME]", "Show current model or switch to NAME"),
+            ("/tasks", "List all tasks"),
+            ("/task add TEXT", "Create new task"),
+            ("/task done ID", "Mark task as completed"),
+            ("/task start ID", "Mark task as in progress"),
+            ("/task delete ID", "Delete task"),
+            ("/task clear", "Clear completed tasks"),
             ("/prompt", "Show current system prompt"),
             ("/versions", "Show prompt version history"),
             ("/rollback N", "Rollback to version N"),
@@ -457,3 +468,123 @@ class AgentCLI:
             console.print("[yellow]Improvement in progress...[/yellow]")
         else:
             console.print(f"[red]Improvement {status}[/red]")
+
+    # ==================== Task Management ====================
+
+    async def _handle_tasks(self, args: str):
+        """Handle task management commands."""
+        parts = args.strip().split(maxsplit=1)
+        subcmd = parts[0].lower() if parts else ""
+        subargs = parts[1] if len(parts) > 1 else ""
+
+        if not subcmd or subcmd == "list":
+            await self._list_tasks()
+        elif subcmd == "add":
+            await self._add_task(subargs)
+        elif subcmd == "done":
+            await self._complete_task(subargs)
+        elif subcmd == "start":
+            await self._start_task(subargs)
+        elif subcmd in ["delete", "rm", "del"]:
+            await self._delete_task(subargs)
+        elif subcmd == "clear":
+            await self._clear_tasks()
+        else:
+            # Treat as task title if no recognized subcommand
+            await self._add_task(args)
+
+    async def _list_tasks(self):
+        """Display all tasks."""
+        tasks = await self.task_manager.list()
+
+        if not tasks:
+            console.print("[dim]No tasks. Use /task add <title> to create one.[/dim]")
+            return
+
+        table = Table(title="Tasks", show_header=True)
+        table.add_column("ID", style="dim", width=6)
+        table.add_column("", width=3)  # Status icon
+        table.add_column("Title")
+        table.add_column("Priority", width=8)
+
+        priority_labels = {0: "", 1: "[yellow]high[/yellow]", 2: "[red]urgent[/red]"}
+
+        for task in tasks:
+            style = "dim" if task.is_completed else ""
+            status_style = {
+                TaskStatus.PENDING: "",
+                TaskStatus.IN_PROGRESS: "[cyan]",
+                TaskStatus.COMPLETED: "[dim]",
+                TaskStatus.BLOCKED: "[red]",
+            }[task.status]
+
+            icon = f"{status_style}{task.status_icon}[/]" if status_style else task.status_icon
+
+            table.add_row(
+                task.id[:6],
+                icon,
+                task.title,
+                priority_labels.get(task.priority, ""),
+                style=style,
+            )
+
+        console.print(table)
+
+        # Show summary
+        total = len(tasks)
+        completed = sum(1 for t in tasks if t.is_completed)
+        pending = total - completed
+        console.print(f"\n[dim]{pending} pending, {completed} completed[/dim]")
+
+    async def _add_task(self, title: str):
+        """Create a new task."""
+        if not title.strip():
+            console.print("[red]Usage: /task add <title>[/red]")
+            return
+
+        task = await self.task_manager.create(title=title.strip())
+        console.print(f"[green]Created task {task.id[:6]}:[/green] {task.title}")
+
+    async def _complete_task(self, task_id: str):
+        """Mark a task as completed."""
+        if not task_id.strip():
+            console.print("[red]Usage: /task done <id>[/red]")
+            return
+
+        task = await self.task_manager.complete(task_id.strip())
+        if task:
+            console.print(f"[green]Completed:[/green] {task.title}")
+        else:
+            console.print(f"[red]Task not found: {task_id}[/red]")
+
+    async def _start_task(self, task_id: str):
+        """Mark a task as in progress."""
+        if not task_id.strip():
+            console.print("[red]Usage: /task start <id>[/red]")
+            return
+
+        task = await self.task_manager.start(task_id.strip())
+        if task:
+            console.print(f"[cyan]Started:[/cyan] {task.title}")
+        else:
+            console.print(f"[red]Task not found: {task_id}[/red]")
+
+    async def _delete_task(self, task_id: str):
+        """Delete a task."""
+        if not task_id.strip():
+            console.print("[red]Usage: /task delete <id>[/red]")
+            return
+
+        deleted = await self.task_manager.delete(task_id.strip())
+        if deleted:
+            console.print(f"[green]Deleted task {task_id}[/green]")
+        else:
+            console.print(f"[red]Task not found: {task_id}[/red]")
+
+    async def _clear_tasks(self):
+        """Clear all completed tasks."""
+        count = await self.task_manager.clear_completed()
+        if count > 0:
+            console.print(f"[green]Cleared {count} completed task(s)[/green]")
+        else:
+            console.print("[dim]No completed tasks to clear[/dim]")
