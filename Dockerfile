@@ -17,5 +17,8 @@ RUN mkdir -p data/logs/conversations data/logs/improvements
 ENV PYTHONUNBUFFERED=1
 ENV LOG_LEVEL=INFO
 
-# Run the agent
-CMD ["agent"]
+# Copy and setup entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
