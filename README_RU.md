@@ -173,10 +173,12 @@ ZHIPU_API_KEY=...             # https://open.bigmodel.cn/
 
 #### Anthropic
 
-| Модель | ID |
-|--------|-----|
-| Claude Opus 4.5 | `claude-opus-4.5` |
-| Claude Sonnet 4 | `claude-sonnet` |
+| Модель | ID | Примечание |
+|--------|-----|-----------|
+| Claude Opus 4.6 | `claude-opus-4.6` | Флагман, 200K контекст, 128K вывод |
+| Claude Sonnet 4.5 | `claude-sonnet` | Баланс скорости и качества |
+| Claude Haiku 4.5 | `claude-haiku` | Быстрая и дешёвая |
+| Claude Opus 4.5 | `claude-opus-4.5` | Legacy |
 
 ## Конфигурация
 

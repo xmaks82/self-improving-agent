@@ -9,6 +9,7 @@ from .base import BaseLLMClient
 # Model to provider mapping
 MODEL_PROVIDERS = {
     # === ANTHROPIC (paid) ===
+    "claude-opus-4.6": "anthropic",
     "claude-opus-4.5": "anthropic",
     "claude-sonnet": "anthropic",
     "claude-opus": "anthropic",

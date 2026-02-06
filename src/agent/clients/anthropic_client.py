@@ -17,15 +17,17 @@ class AnthropicClient(BaseLLMClient):
     # Available Anthropic models
     MODELS = {
         # Shortcuts
-        "claude-opus-4.5": "claude-opus-4-5-20251101",  # Best model
-        "claude-sonnet": "claude-sonnet-4-20250514",
+        "claude-opus-4.6": "claude-opus-4-6",            # Flagship (Feb 2026)
+        "claude-opus-4.5": "claude-opus-4-5-20251101",   # Legacy
+        "claude-sonnet": "claude-sonnet-4-5-20250929",
         "claude-opus": "claude-opus-4-20250514",
-        "claude-haiku": "claude-haiku-3-5-20241022",
+        "claude-haiku": "claude-haiku-4-5-20251001",
         # Full model names
+        "claude-opus-4-6": "claude-opus-4-6",
         "claude-opus-4-5-20251101": "claude-opus-4-5-20251101",
-        "claude-sonnet-4-20250514": "claude-sonnet-4-20250514",
+        "claude-sonnet-4-5-20250929": "claude-sonnet-4-5-20250929",
         "claude-opus-4-20250514": "claude-opus-4-20250514",
-        "claude-haiku-3-5-20241022": "claude-haiku-3-5-20241022",
+        "claude-haiku-4-5-20251001": "claude-haiku-4-5-20251001",
     }
 
     def __init__(self, api_key: Optional[str] = None, model: str = "claude-sonnet"):
@@ -190,4 +192,4 @@ class AnthropicClient(BaseLLMClient):
     @classmethod
     def list_models(cls) -> list[str]:
         """List available model shortcuts."""
-        return ["claude-opus-4.5", "claude-sonnet", "claude-opus", "claude-haiku"]
+        return ["claude-opus-4.6", "claude-opus-4.5", "claude-sonnet", "claude-haiku"]

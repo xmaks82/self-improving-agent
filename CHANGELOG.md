@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+- **Claude Opus 4.6** — Anthropic's new flagship model (model ID: `claude-opus-4-6`, 200K context, 128K max output, $5/$25 per 1M tokens)
+- Updated Anthropic model mappings: Sonnet 4.5, Haiku 4.5
+- Claude Opus 4.5 marked as legacy
+
 ## [1.0.0] - 2026-02-06
 
 ### Added
