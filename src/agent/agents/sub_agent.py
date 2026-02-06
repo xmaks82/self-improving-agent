@@ -43,15 +43,16 @@ class SubAgent(ABC):
         """Call LLM with system prompt."""
         messages = [{"role": "user", "content": user_message}]
 
-        # Build full response from stream
-        full_response = ""
-        async for chunk in self.client.chat(
-            messages=messages,
-            system_prompt=self.system_prompt,
-        ):
-            full_response += chunk
-
-        return full_response
+        try:
+            full_response = ""
+            async for chunk in self.client.stream(
+                messages=messages,
+                system=self.system_prompt,
+            ):
+                full_response += chunk
+            return full_response
+        except Exception as e:
+            return f"Error calling LLM: {e}"
 
     def _format_context(self, context: dict[str, Any]) -> str:
         """Format context for inclusion in prompt."""

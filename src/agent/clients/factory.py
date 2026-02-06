@@ -157,14 +157,6 @@ def get_free_models() -> dict[str, list[str]]:
     }
 
 
-def get_all_model_names() -> list[str]:
-    """Get flat list of all available model names."""
-    models = []
-    for provider_models in get_available_models().values():
-        models.extend(provider_models)
-    return models
-
-
 def get_fallback_models(current_model: str) -> list[str]:
     """
     Get ordered list of fallback models when rate limit is hit.

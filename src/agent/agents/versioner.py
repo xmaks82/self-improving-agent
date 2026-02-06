@@ -1,6 +1,6 @@
 """Versioner agent for generating improved system prompts."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 import json
 

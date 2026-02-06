@@ -1,7 +1,7 @@
 """Undo system for reverting changes."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 import json
@@ -124,7 +124,7 @@ class UndoManager:
             id=self._generate_id(),
             change_type=change_type,
             target=path,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             before=before,
             after=after,
             metadata=metadata or {},
@@ -147,7 +147,7 @@ class UndoManager:
             id=self._generate_id(),
             change_type="file_delete",
             target=path,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             before=content,
             after=None,
             metadata=metadata or {},

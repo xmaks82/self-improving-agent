@@ -1,16 +1,19 @@
 """Main entry point for the self-improving agent."""
 
 import asyncio
+import logging
 import os
 import sys
 
 from .agents.main_agent import MainAgent
-from .clients import create_client, get_available_models
+from .clients import create_client
 from .clients.factory import get_provider
 from .storage.prompts import PromptManager
 from .storage.logs import LogManager
 from .interfaces.cli import AgentCLI
 from .config import config
+
+logger = logging.getLogger(__name__)
 
 
 def check_api_keys(model: str) -> bool:
@@ -19,14 +22,11 @@ def check_api_keys(model: str) -> bool:
 
     if provider == "anthropic":
         if not os.getenv("ANTHROPIC_API_KEY"):
-            print("Error: ANTHROPIC_API_KEY environment variable is not set.")
-            print("Please set it in your .env file or environment.")
+            logger.error("ANTHROPIC_API_KEY environment variable is not set.")
             return False
     elif provider == "zhipu":
         if not os.getenv("ZHIPU_API_KEY"):
-            print("Error: ZHIPU_API_KEY environment variable is not set.")
-            print("Please set it in your .env file or environment.")
-            print("Get your API key from: https://open.bigmodel.cn/")
+            logger.error("ZHIPU_API_KEY environment variable is not set. Get key from: https://open.bigmodel.cn/")
             return False
 
     return True
@@ -43,8 +43,7 @@ def cli_main():
 
     # Also need Anthropic for feedback detector and improvement pipeline
     if get_provider(default_model) != "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
-        print("Warning: ANTHROPIC_API_KEY not set. Feedback detection disabled.")
-        print("The improvement pipeline requires Claude for tool_use support.")
+        logger.warning("ANTHROPIC_API_KEY not set. Feedback detection disabled.")
 
     # Initialize storage
     prompt_manager = PromptManager()
@@ -54,7 +53,7 @@ def cli_main():
     try:
         client = create_client(default_model)
     except ValueError as e:
-        print(f"Error creating client: {e}")
+        logger.error("Error creating client: %s", e)
         sys.exit(1)
 
     # Create feedback detector (uses Anthropic)
@@ -66,7 +65,7 @@ def cli_main():
             anthropic_client = Anthropic()
             feedback_detector = FeedbackDetector(anthropic_client)
         except Exception as e:
-            print(f"Warning: Could not initialize feedback detector: {e}")
+            logger.warning("Could not initialize feedback detector: %s", e)
 
     # Create main agent
     main_agent = MainAgent(

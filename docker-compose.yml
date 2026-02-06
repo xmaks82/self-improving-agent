@@ -9,11 +9,12 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY}
       # Optional: for more models
       - CEREBRAS_API_KEY=${CEREBRAS_API_KEY:-}
+      - SAMBANOVA_API_KEY=${SAMBANOVA_API_KEY:-}
       - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
       # Optional: for improvement pipeline
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       # Model configuration
-      - DEFAULT_MODEL=${DEFAULT_MODEL:-llama-3.3-70b}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-llama-4-maverick}
       - ANALYZER_MODEL=${ANALYZER_MODEL:-claude-sonnet}
       - VERSIONER_MODEL=${VERSIONER_MODEL:-claude-sonnet}
       - FEEDBACK_MODEL=${FEEDBACK_MODEL:-claude-haiku}
@@ -22,7 +23,10 @@ services:
       - IMPROVEMENT_CONFIDENCE_THRESHOLD=${IMPROVEMENT_CONFIDENCE_THRESHOLD:-0.6}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
-      # Persist prompts and logs
+      # Persist all data
       - ./data/prompts:/app/data/prompts
       - ./data/logs:/app/data/logs
+      - ./data/tasks:/app/data/tasks
+      - ./data/memory:/app/data/memory
+      - ./data/undo:/app/data/undo
     restart: unless-stopped

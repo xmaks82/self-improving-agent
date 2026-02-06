@@ -1,11 +1,14 @@
 """Shell command execution tool."""
 
 import asyncio
+import logging
 import shlex
 from pathlib import Path
 from typing import Optional
 
 from .base import BaseTool, ToolResult
+
+logger = logging.getLogger(__name__)
 
 
 class RunCommandTool(BaseTool):
@@ -109,8 +112,7 @@ class RunCommandTool(BaseTool):
         # Check for dangerous patterns in arguments
         for part in parts[1:]:
             if part.startswith(">") or part in ["|", "&&", "||", ";"]:
-                # Allow pipes but log
-                pass
+                logger.warning("Shell operator detected in command: %s (operator: %s)", command, part)
 
         return True, ""
 

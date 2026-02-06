@@ -1,12 +1,15 @@
 """Prompt version management with YAML storage and symlinks."""
 
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+import logging
 import yaml
 import os
 
 from ..config import config
+
+logger = logging.getLogger(__name__)
 
 
 class PromptManager:
@@ -96,12 +99,12 @@ class PromptManager:
         current_version = self.current_version(agent_name)
         new_version = current_version + 1
 
-        timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
         filename = f"v{new_version:03d}_{timestamp}.yaml"
 
         version_data = {
             "version": new_version,
-            "created_at": datetime.utcnow().isoformat() + "Z",
+            "created_at": datetime.now(timezone.utc).isoformat() + "Z",
             "parent_version": current_version if current_version > 0 else None,
             "improvement": improvement_info,
             "changes": changes,
@@ -167,8 +170,7 @@ class PromptManager:
         target_file = version_files[0]
         self._update_current_link(agent_name, target_file.name)
 
-        # Log rollback (could be enhanced)
-        print(f"Rolled back {agent_name} to v{target_version}: {reason}")
+        logger.info("Rolled back %s to v%d: %s", agent_name, target_version, reason)
 
         return True
 

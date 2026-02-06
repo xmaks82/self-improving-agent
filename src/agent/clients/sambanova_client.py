@@ -50,7 +50,7 @@ class SambanovaClient(BaseLLMClient):
         "sambanova": "Meta-Llama-3.3-70B-Instruct",
     }
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "llama-3.3-70b"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "llama-3.3-70b", timeout: float = 120.0):
         api_key = api_key or os.getenv("SAMBANOVA_API_KEY")
         if not api_key:
             raise ValueError(
@@ -60,7 +60,18 @@ class SambanovaClient(BaseLLMClient):
 
         self.api_key = api_key
         self.model = self.MODELS.get(model, model)
-        self.client = httpx.Client(timeout=120.0)
+        self.client = httpx.Client(timeout=timeout)
+
+    def _handle_rate_limit(self, e: httpx.HTTPStatusError):
+        """Check for rate limit and raise unified error."""
+        if e.response.status_code == 429:
+            retry_after = e.response.headers.get("retry-after")
+            raise RateLimitError(
+                provider="sambanova",
+                model=self.model,
+                message=str(e),
+                retry_after=float(retry_after) if retry_after else None,
+            ) from e
 
     def _headers(self) -> dict:
         return {
@@ -103,14 +114,7 @@ class SambanovaClient(BaseLLMClient):
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 429:
-                retry_after = e.response.headers.get("retry-after")
-                raise RateLimitError(
-                    provider="sambanova",
-                    model=self.model,
-                    message=str(e),
-                    retry_after=float(retry_after) if retry_after else None,
-                ) from e
+            self._handle_rate_limit(e)
             raise
 
         data = response.json()
@@ -167,14 +171,7 @@ class SambanovaClient(BaseLLMClient):
                         except (json.JSONDecodeError, KeyError, IndexError, TypeError):
                             continue
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 429:
-                retry_after = e.response.headers.get("retry-after")
-                raise RateLimitError(
-                    provider="sambanova",
-                    model=self.model,
-                    message=str(e),
-                    retry_after=float(retry_after) if retry_after else None,
-                ) from e
+            self._handle_rate_limit(e)
             raise
 
     def chat_with_tools(
@@ -210,14 +207,7 @@ class SambanovaClient(BaseLLMClient):
             )
             response.raise_for_status()
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 429:
-                retry_after = e.response.headers.get("retry-after")
-                raise RateLimitError(
-                    provider="sambanova",
-                    model=self.model,
-                    message=str(e),
-                    retry_after=float(retry_after) if retry_after else None,
-                ) from e
+            self._handle_rate_limit(e)
             raise
 
         data = response.json()

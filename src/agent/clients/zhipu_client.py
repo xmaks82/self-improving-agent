@@ -1,6 +1,6 @@
 """Zhipu AI GLM client implementation."""
 
-from typing import AsyncIterator, Iterator, Optional
+from typing import AsyncIterator, Optional
 import json
 from zhipuai import ZhipuAI
 
@@ -29,7 +29,7 @@ class ZhipuClient(BaseLLMClient):
         "glm-4-plus": "glm-4-plus",
     }
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "glm-4"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "glm-4.5-flash"):
         if not api_key:
             import os
             api_key = os.getenv("ZHIPU_API_KEY")
@@ -130,43 +130,6 @@ class ZhipuClient(BaseLLMClient):
         for chunk in response:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
-
-    def stream_with_usage(
-        self,
-        messages: list[dict],
-        system: Optional[str] = None,
-        max_tokens: int = 4096,
-    ) -> tuple[Iterator[str], dict]:
-        """Streaming with usage tracking."""
-        usage = {"input_tokens": 0, "output_tokens": 0}
-
-        formatted_messages = []
-        if system:
-            formatted_messages.append({"role": "system", "content": system})
-        formatted_messages.extend(messages)
-
-        def generate():
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=formatted_messages,
-                    max_tokens=max_tokens,
-                    stream=True,
-                )
-            except Exception as e:
-                self._handle_rate_limit(e)
-                raise
-
-            for chunk in response:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-
-                # Zhipu includes usage in last chunk
-                if hasattr(chunk, 'usage') and chunk.usage:
-                    usage["input_tokens"] = chunk.usage.prompt_tokens
-                    usage["output_tokens"] = chunk.usage.completion_tokens
-
-        return generate(), usage
 
     def chat_with_tools(
         self,

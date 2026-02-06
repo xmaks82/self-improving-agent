@@ -45,7 +45,7 @@ class ReadFileTool(BaseTool):
         if self.base_path:
             # Sandbox: ensure path is within base_path
             resolved = (self.base_path / p).resolve()
-            if not str(resolved).startswith(str(self.base_path.resolve())):
+            if not resolved.is_relative_to(self.base_path.resolve()):
                 raise PermissionError(f"Access denied: {path}")
             return resolved
         return p.resolve()
@@ -117,7 +117,7 @@ class WriteFileTool(BaseTool):
         p = Path(path)
         if self.base_path:
             resolved = (self.base_path / p).resolve()
-            if not str(resolved).startswith(str(self.base_path.resolve())):
+            if not resolved.is_relative_to(self.base_path.resolve()):
                 raise PermissionError(f"Access denied: {path}")
             return resolved
         return p.resolve()
@@ -186,7 +186,7 @@ class ListDirectoryTool(BaseTool):
         p = Path(path)
         if self.base_path:
             resolved = (self.base_path / p).resolve()
-            if not str(resolved).startswith(str(self.base_path.resolve())):
+            if not resolved.is_relative_to(self.base_path.resolve()):
                 raise PermissionError(f"Access denied: {path}")
             return resolved
         return p.resolve()

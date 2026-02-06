@@ -102,42 +102,6 @@ class AnthropicClient(BaseLLMClient):
                 message=str(e),
             ) from e
 
-    def stream_with_usage(
-        self,
-        messages: list[dict],
-        system: Optional[str] = None,
-        max_tokens: int = 4096,
-    ) -> tuple[Iterator[str], dict]:
-        """Streaming with usage stats at the end."""
-        kwargs = {
-            "model": self.model,
-            "max_tokens": max_tokens,
-            "messages": messages,
-        }
-
-        if system:
-            kwargs["system"] = system
-
-        usage = {"input_tokens": 0, "output_tokens": 0}
-
-        def generate():
-            try:
-                with self.client.messages.stream(**kwargs) as stream:
-                    for text in stream.text_stream:
-                        yield text
-                    # Get final message for usage
-                    final = stream.get_final_message()
-                    usage["input_tokens"] = final.usage.input_tokens
-                    usage["output_tokens"] = final.usage.output_tokens
-            except AnthropicRateLimitError as e:
-                raise RateLimitError(
-                    provider="anthropic",
-                    model=self.model,
-                    message=str(e),
-                ) from e
-
-        return generate(), usage
-
     def chat_with_tools(
         self,
         messages: list[dict],

@@ -1,7 +1,7 @@
 """Memory storage backend using SQLite."""
 
-import sqlite3
 import aiosqlite
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 import json
@@ -282,7 +282,7 @@ class MemoryStore:
 
         from datetime import timedelta
 
-        cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
@@ -295,6 +295,3 @@ class MemoryStore:
             await db.commit()
             return cursor.rowcount
 
-
-# Import datetime for cleanup_old
-from datetime import datetime

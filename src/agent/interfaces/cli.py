@@ -399,15 +399,12 @@ class AgentCLI:
             return
 
         # Import here to avoid circular imports
-        from ..core.feedback import Feedback
+        from ..core.feedback import Feedback, FeedbackDetector
 
-        # Determine feedback type based on content
-        # Simple heuristic for explicit feedback - patterns from FeedbackDetector
-        negative_patterns = [
-            "плохо", "ужас", "ошиб", "неправ", "некорр", "не так", "не то",
-            "bad", "wrong", "error", "incorrect", "terrible", "awful"
-        ]
-        is_negative = any(pattern in args.lower() for pattern in negative_patterns)
+        # Use FeedbackDetector's pattern matching to classify
+        detector = FeedbackDetector()
+        detected = detector.detect(args)
+        is_negative = detected.type == "negative" if detected else False
 
         feedback = Feedback(
             type="negative" if is_negative else "positive",

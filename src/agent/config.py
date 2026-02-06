@@ -13,19 +13,11 @@ load_dotenv()
 @dataclass
 class ModelConfig:
     """Model configuration."""
-    # Main agent model (can be claude-* or glm-*)
-    default: str = "claude-opus-4.5"  # Best Anthropic model
+    default: str = "llama-4-maverick"
     # Models for improvement pipeline
-    analyzer: str = "claude-sonnet"
-    versioner: str = "claude-sonnet"
-    feedback: str = "claude-haiku"
-
-    def get_provider(self, model: Optional[str] = None) -> str:
-        """Get provider name for a model."""
-        m = model or self.default
-        if m.startswith("glm"):
-            return "zhipu"
-        return "anthropic"
+    analyzer: str = "llama-3.3-70b"
+    versioner: str = "llama-3.3-70b"
+    feedback: str = "llama-4-scout"
 
 
 @dataclass
@@ -89,10 +81,10 @@ class Config:
         """Load configuration from environment variables."""
         return cls(
             models=ModelConfig(
-                default=os.getenv("DEFAULT_MODEL", "claude-opus-4.5"),
-                analyzer=os.getenv("ANALYZER_MODEL", "claude-sonnet"),
-                versioner=os.getenv("VERSIONER_MODEL", "claude-sonnet"),
-                feedback=os.getenv("FEEDBACK_MODEL", "claude-haiku"),
+                default=os.getenv("DEFAULT_MODEL", "llama-4-maverick"),
+                analyzer=os.getenv("ANALYZER_MODEL", "llama-3.3-70b"),
+                versioner=os.getenv("VERSIONER_MODEL", "llama-3.3-70b"),
+                feedback=os.getenv("FEEDBACK_MODEL", "llama-4-scout"),
             ),
             api=APIConfig.from_env(),
             thresholds=ThresholdConfig(

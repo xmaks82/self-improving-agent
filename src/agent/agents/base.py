@@ -1,7 +1,7 @@
 """Base agent class with common functionality."""
 
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator
 import uuid
 
 from ..clients import BaseLLMClient

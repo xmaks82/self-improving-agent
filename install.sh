@@ -46,9 +46,9 @@ if [ ! -f .env ]; then
         sed -i "s/GROQ_API_KEY=.*/GROQ_API_KEY=$GROQ_KEY/" .env
     fi
 
-    read -p "OPENROUTER_API_KEY (FREE - https://openrouter.ai/keys): " OPENROUTER_KEY
-    if [ -n "$OPENROUTER_KEY" ]; then
-        sed -i "s/OPENROUTER_API_KEY=.*/OPENROUTER_API_KEY=$OPENROUTER_KEY/" .env
+    read -p "SAMBANOVA_API_KEY (FREE, fastest - https://cloud.sambanova.ai/): " SAMBANOVA_KEY
+    if [ -n "$SAMBANOVA_KEY" ]; then
+        sed -i "s/SAMBANOVA_API_KEY=.*/SAMBANOVA_API_KEY=$SAMBANOVA_KEY/" .env
     fi
 
     read -p "ANTHROPIC_API_KEY (paid, for improvements - https://console.anthropic.com/): " ANTHROPIC_KEY

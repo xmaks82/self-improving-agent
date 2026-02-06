@@ -1,7 +1,7 @@
 """Dry run mode for previewing actions without execution."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from enum import Enum
 
@@ -29,7 +29,7 @@ class PlannedAction:
     parameters: dict[str, Any] = field(default_factory=dict)
     status: ActionStatus = ActionStatus.PENDING
     reason: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> dict:
         return {
@@ -60,7 +60,7 @@ class DryRunSession:
     def start(self):
         """Start dry run session."""
         self._active = True
-        self._started_at = datetime.utcnow()
+        self._started_at = datetime.now(timezone.utc)
         self._actions = []
         self.console.print(
             Panel(

@@ -11,7 +11,7 @@ COPY data/ data/
 RUN pip install --no-cache-dir -e .
 
 # Create directories for persistent data
-RUN mkdir -p data/logs/conversations data/logs/improvements
+RUN mkdir -p data/logs/conversations data/logs/improvements data/tasks data/memory data/undo
 
 # Environment variables (override in docker-compose or run command)
 ENV PYTHONUNBUFFERED=1

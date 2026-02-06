@@ -1,7 +1,7 @@
 """Memory types for the agentic memory system."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 import uuid
@@ -40,7 +40,7 @@ class Memory:
     content: str
     importance: float = 0.5
     access_count: int = 0
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_accessed: Optional[datetime] = None
     metadata: dict[str, Any] = field(default_factory=dict)
     embedding: Optional[list[float]] = None
@@ -68,7 +68,7 @@ class Memory:
     def access(self) -> "Memory":
         """Record memory access."""
         self.access_count += 1
-        self.last_accessed = datetime.utcnow()
+        self.last_accessed = datetime.now(timezone.utc)
         return self
 
     def update_importance(self, delta: float) -> "Memory":
@@ -110,7 +110,7 @@ class Memory:
     @property
     def age_hours(self) -> float:
         """Age of memory in hours."""
-        return (datetime.utcnow() - self.created_at).total_seconds() / 3600
+        return (datetime.now(timezone.utc) - self.created_at).total_seconds() / 3600
 
     @property
     def recency_score(self) -> float:

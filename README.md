@@ -110,6 +110,9 @@ agent
 # Groq - рекомендуется (бесплатно, быстро)
 GROQ_API_KEY=gsk_...          # https://console.groq.com/
 
+# SambaNova - САМЫЙ БЫСТРЫЙ (580 t/s, бесплатно)
+SAMBANOVA_API_KEY=...         # https://cloud.sambanova.ai/
+
 # Cerebras - 1M токенов/день бесплатно, ультра-быстрый
 CEREBRAS_API_KEY=...          # https://cloud.cerebras.ai/
 
@@ -296,7 +299,10 @@ Human-in-the-loop система:
 
 | Модель | ID |
 |--------|-----|
+| GLM 4.7 | `glm-4.7` |
 | GLM 4.5 Flash | `glm-4.5-flash` |
+| GLM 4.5 Air | `glm-4.5-air` |
+| GLM 4 Plus | `glm-4-plus` |
 
 ### 💰 Платные
 
@@ -382,12 +388,16 @@ make shell    # Shell в контейнере
 ```bash
 # API ключи
 GROQ_API_KEY=gsk_...
+SAMBANOVA_API_KEY=...
 CEREBRAS_API_KEY=...
 
-# Модели
+# Модель по умолчанию (бесплатная)
 DEFAULT_MODEL=llama-4-maverick
-ANALYZER_MODEL=llama-3.3-70b
-VERSIONER_MODEL=llama-3.3-70b
+
+# Pipeline улучшения (требует Anthropic API key)
+ANALYZER_MODEL=claude-sonnet
+VERSIONER_MODEL=claude-sonnet
+FEEDBACK_MODEL=claude-haiku
 ```
 
 ## Версии

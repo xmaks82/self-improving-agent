@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Iterator, Optional
+from typing import Any, AsyncIterator, Iterator, Optional
 
 
 @dataclass
@@ -74,12 +74,12 @@ class BaseLLMClient(ABC):
         pass
 
     @abstractmethod
-    def stream(
+    async def stream(
         self,
         messages: list[dict],
         system: Optional[str] = None,
         max_tokens: int = 4096,
-    ) -> Iterator[str]:
+    ) -> AsyncIterator[str]:
         """Streaming chat completion, yields text chunks."""
         pass
 

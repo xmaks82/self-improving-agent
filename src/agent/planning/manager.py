@@ -1,5 +1,6 @@
 """Task manager for persistent task storage."""
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 import json
@@ -127,7 +128,7 @@ class TaskManager:
                     else:
                         task.status = TaskStatus(updates["status"])
 
-                task.updated_at = task.updated_at.__class__.utcnow()
+                task.updated_at = datetime.now(timezone.utc)
                 tasks[i] = task
                 updated_task = task
                 break

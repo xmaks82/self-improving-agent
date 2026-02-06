@@ -1,7 +1,7 @@
 """Task dataclass for planning system."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from enum import Enum
 import uuid
@@ -37,8 +37,8 @@ class Task:
     description: Optional[str] = None
     priority: int = 0
     parent_id: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
 
     @classmethod
@@ -61,20 +61,20 @@ class Task:
     def complete(self) -> "Task":
         """Mark task as completed."""
         self.status = TaskStatus.COMPLETED
-        self.completed_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
         return self
 
     def start(self) -> "Task":
         """Mark task as in progress."""
         self.status = TaskStatus.IN_PROGRESS
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         return self
 
     def block(self) -> "Task":
         """Mark task as blocked."""
         self.status = TaskStatus.BLOCKED
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         return self
 
     def to_dict(self) -> dict:

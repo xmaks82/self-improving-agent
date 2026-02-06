@@ -1,6 +1,6 @@
 """Memory consolidation for maintaining memory quality."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from .types import Memory, MemoryType
@@ -52,7 +52,7 @@ class MemoryConsolidator:
     async def _decay_importance(self) -> int:
         """Decay importance of old memories."""
         count = 0
-        cutoff = datetime.utcnow() - timedelta(days=7)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
 
         # Get old memories
         memories = await self.store.get_recent(limit=100)
@@ -97,7 +97,7 @@ class MemoryConsolidator:
     async def _clear_old_working(self) -> int:
         """Clear old working memory entries."""
         # Working memory should be short-lived
-        cutoff = datetime.utcnow() - timedelta(hours=24)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
 
         working = await self.store.get_by_type(MemoryType.WORKING, limit=100)
         count = 0
@@ -200,6 +200,9 @@ class MemoryConsolidator:
         Returns:
             Merged memory
         """
+        if not memories:
+            raise ValueError("Cannot merge empty list of memories")
+
         # Calculate merged importance
         max_importance = max(m.importance for m in memories)
         total_access = sum(m.access_count for m in memories)

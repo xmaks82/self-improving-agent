@@ -8,6 +8,8 @@ from .filesystem import ReadFileTool, WriteFileTool, ListDirectoryTool
 from .shell import RunCommandTool
 from .git import GitStatusTool, GitDiffTool, GitCommitTool
 from .search import SearchFilesTool, GrepTool
+from .web_search import WebSearchTool
+from .web_fetch import WebFetchTool
 
 
 class ToolRegistry:
@@ -60,6 +62,10 @@ class ToolRegistry:
         # Search tools
         self.register(SearchFilesTool(default_path=self.working_dir))
         self.register(GrepTool(default_path=self.working_dir))
+
+        # Web tools
+        self.register(WebSearchTool())
+        self.register(WebFetchTool())
 
     def register(self, tool: BaseTool):
         """Register a tool."""

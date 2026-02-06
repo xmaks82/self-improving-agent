@@ -1,7 +1,7 @@
 """Log management for conversations and improvements."""
 
 from pathlib import Path
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Optional
 from dataclasses import dataclass, asdict, field
 import json
@@ -66,7 +66,7 @@ class LogManager:
     ):
         """Log a single conversation turn."""
         log_entry = TurnLog(
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=datetime.now(timezone.utc).isoformat() + "Z",
             session_id=session_id,
             turn_id=self._get_turn_id(session_id),
             user_message=user_message,
@@ -86,7 +86,7 @@ class LogManager:
     async def log_improvement_event(self, event_type: str, data: dict):
         """Log an improvement-related event."""
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "type": event_type,
             **data,
         }
