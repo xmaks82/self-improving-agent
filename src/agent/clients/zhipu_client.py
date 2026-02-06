@@ -16,17 +16,13 @@ class ZhipuClient(BaseLLMClient):
     supports_tools = True
 
     # Available GLM models (February 2026)
-    # Note: Free tier has strict rate limits
     MODELS = {
-        # GLM 4.7 - newest
-        "glm-4.7": "glm-4.7",
-
-        # GLM 4.5 - balanced
-        "glm-4.5-air": "glm-4.5-air",
+        # Free
         "glm-4.5-flash": "glm-4.5-flash",
 
-        # GLM 4 Plus - powerful
-        "glm-4-plus": "glm-4-plus",
+        # Paid
+        "glm-4.7": "glm-4.7",           # $0.60/$2.20 per 1M tokens
+        "glm-4.5-air": "glm-4.5-air",   # $0.20/$1.10 per 1M tokens
     }
 
     def __init__(self, api_key: Optional[str] = None, model: str = "glm-4.5-flash"):
@@ -211,4 +207,4 @@ class ZhipuClient(BaseLLMClient):
     @classmethod
     def list_models(cls) -> list[str]:
         """List available model shortcuts."""
-        return ["glm-4.7", "glm-4.5-air", "glm-4.5-flash", "glm-4-plus"]
+        return ["glm-4.5-flash", "glm-4.7", "glm-4.5-air"]

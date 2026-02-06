@@ -26,11 +26,10 @@ MODEL_PROVIDERS = {
     "cerebras": "cerebras",
     "cerebras-8b": "cerebras",
 
-    # === ZHIPU (free tier with rate limits) ===
+    # === ZHIPU (glm-4.5-flash free, rest paid) ===
+    "glm-4.5-flash": "zhipu",
     "glm-4.7": "zhipu",
     "glm-4.5-air": "zhipu",
-    "glm-4.5-flash": "zhipu",
-    "glm-4-plus": "zhipu",
     "glm": "zhipu",
 
     # === SAMBANOVA (free, ultra-fast 580 t/s) ===
@@ -152,7 +151,7 @@ def get_free_models() -> dict[str, list[str]]:
     return {
         "groq (free, fast)": GroqClient.list_models(),
         "cerebras (free 1M/day, ultra-fast)": CerebrasClient.list_models(),
-        "zhipu (free tier)": ZhipuClient.list_models(),
+        "zhipu (free)": ["glm-4.5-flash"],
         "sambanova (free, 580 t/s)": SambanovaClient.list_models(),
     }
 
