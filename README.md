@@ -1,36 +1,88 @@
-# Self-Improving AI Agent v1.0
+# Self-Improving AI Agent
 
-Самоулучшающийся AI-агент с полноценными agentic capabilities: планирование, память, инструменты, под-агенты. Поддерживает **5 провайдеров**: Groq, SambaNova, Cerebras, Zhipu и Anthropic.
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/xmaks82/self-improving-agent)](https://github.com/xmaks82/self-improving-agent/stargazers)
+[![Free LLM Providers](https://img.shields.io/badge/Free_LLM_Providers-5-orange)](https://github.com/xmaks82/self-improving-agent#free-4-providers)
 
-## Что нового в v1.0
+> **[Версия на русском](README_RU.md)**
 
-- **Planning System** — управление задачами как в Claude Code
-- **MCP Integration** — Model Context Protocol для внешних инструментов
-- **Code Tools** — работа с файлами, git, shell, поиск
-- **Agentic Memory** — персистентная память между сессиями
-- **Sub-agents** — специализированные агенты (CodeReviewer, TestWriter, Debugger)
-- **Human-in-the-Loop** — diff preview, подтверждения, undo
-- **Web Tools** — поиск и загрузка веб-страниц
+**AI agents forget. This one permanently evolves.**
 
-## Ключевая идея
-
-В отличие от обычных чат-ботов, где "память" сжимается со временем, этот агент **перманентно улучшает свой системный промпт** на основе вашего фидбека. Каждое улучшение сохраняется навсегда.
-
-> 💡 **Полностью бесплатно**: Работает с бесплатными моделями через Groq!
+Unlike regular chatbots where context fades over time, this agent **permanently rewrites its own system prompt** based on your feedback. Every improvement is saved forever — v1 becomes v2, v3, v47...
 
 ```
-Вы: "Слишком длинный ответ"
+You: "Your answers are too long"
      ↓
-[Analyzer] анализирует логи, формулирует гипотезы
+[Analyzer] examines logs, formulates hypotheses
      ↓
-[Versioner] генерирует улучшенный промпт
+[Versioner] generates an improved system prompt
      ↓
-Новая версия промпта сохраняется (v1 → v2 → v3...)
+New prompt version saved (v1 → v2 → v3...)
      ↓
-Следующие ответы уже с новым "мозгом"
+Next responses use the upgraded "brain"
 ```
 
-## Архитектура v1.0
+Runs entirely on **free LLM APIs** — no paid subscriptions needed.
+
+## Features
+
+- **Self-Improving Prompts** — permanent prompt evolution from user feedback
+- **5 LLM Providers** — Groq, SambaNova (580 t/s), Cerebras, Zhipu, Anthropic
+- **Planning System** — task management with decomposition
+- **Persistent Memory** — episodic, semantic, procedural, working memory across sessions
+- **MCP Integration** — Model Context Protocol for external tools (GitHub, Slack, databases)
+- **11 Built-in Tools** — filesystem, git, shell, search, web fetch
+- **Sub-agents** — CodeReviewer, TestWriter, Debugger, Researcher, Refactorer
+- **Human-in-the-Loop** — diff preview, confirmations, dry run, undo/redo
+
+## Quick Start
+
+### Docker (recommended)
+
+```bash
+git clone https://github.com/xmaks82/self-improving-agent.git
+cd self-improving-agent
+
+cp .env.example .env
+nano .env  # Add your GROQ_API_KEY
+
+make run
+```
+
+### Local install
+
+```bash
+git clone https://github.com/xmaks82/self-improving-agent.git
+cd self-improving-agent
+
+python -m venv venv
+source venv/bin/activate
+pip install -e .
+
+cp .env.example .env
+agent
+```
+
+### API Keys
+
+You only need **one free key** to get started:
+
+```bash
+# Groq — recommended (free, fast)
+GROQ_API_KEY=gsk_...          # https://console.groq.com/
+
+# SambaNova — fastest (580 t/s, free)
+SAMBANOVA_API_KEY=...         # https://cloud.sambanova.ai/
+
+# Cerebras — 1M tokens/day free, ultra-fast
+CEREBRAS_API_KEY=...          # https://cloud.cerebras.ai/
+
+# Zhipu AI — glm-4.5-flash is free
+ZHIPU_API_KEY=...             # https://open.bigmodel.cn/
+```
+
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -76,124 +128,114 @@
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-## Быстрый старт
+## CLI Commands
 
-### Docker (рекомендуется)
+| Command | Description |
+|---------|-------------|
+| `/help` | Show all commands |
+| `/model [NAME]` | Show or switch model |
+| `/tools` | List available tools |
+| `/tasks` | List tasks |
+| `/task add TEXT` | Create a task |
+| `/task done ID` | Complete a task |
+| `/prompt` | Show current system prompt |
+| `/versions` | Prompt version history |
+| `/rollback N` | Rollback to version N |
+| `/feedback TEXT` | Send feedback to improve the agent |
+| `/mcp list` | List MCP servers |
+| `/mcp connect NAME` | Connect an MCP server |
+| `/stats` | Session statistics |
+| `/quit` | Exit |
+
+## Models
+
+### Free (4 providers)
+
+#### Groq (recommended)
+
+| Model | ID |
+|-------|-----|
+| Llama 4 Maverick | `llama-4-maverick` |
+| Llama 3.3 70B | `llama-3.3-70b` |
+| Qwen3 32B | `qwen3-32b` |
+| Kimi K2 | `kimi-k2` |
+
+#### SambaNova (580 t/s — fastest!)
+
+| Model | ID |
+|-------|-----|
+| Llama 3.3 70B | `samba-llama-70b` |
+| Llama 3.1 8B | `samba-llama-8b` |
+| DeepSeek V3 | `deepseek-v3` |
+| DeepSeek R1 70B | `deepseek-r1-70b` |
+| QwQ 32B | `qwq-32b` |
+
+#### Cerebras (1M tokens/day)
+
+| Model | ID |
+|-------|-----|
+| Llama 3.1 8B | `llama3.1-8b` |
+
+#### Zhipu AI
+
+| Model | ID |
+|-------|-----|
+| GLM 4.5 Flash | `glm-4.5-flash` |
+
+### Paid
+
+#### Zhipu AI
+
+| Model | ID | Price (input/output per 1M) |
+|-------|-----|--------------------------|
+| GLM 4.7 | `glm-4.7` | $0.60 / $2.20 |
+| GLM 4.5 Air | `glm-4.5-air` | $0.20 / $1.10 |
+
+#### Anthropic
+
+| Model | ID |
+|-------|-----|
+| Claude Opus 4.5 | `claude-opus-4.5` |
+| Claude Sonnet 4 | `claude-sonnet` |
+
+## Modules
+
+| Module | Path | Description |
+|--------|------|-------------|
+| **Agents** | `src/agent/agents/` | Main agent, sub-agents (CodeReviewer, TestWriter, Debugger, Researcher, Refactorer), analyzer, versioner |
+| **Planning** | `src/agent/planning/` | Task management with JSONL storage |
+| **Memory** | `src/agent/memory/` | SQLite-backed persistent memory (episodic, semantic, procedural, working) |
+| **Tools** | `src/agent/tools/` | 11 built-in tools: filesystem, shell, git, search, grep, web search, web fetch |
+| **MCP** | `src/agent/mcp/` | Model Context Protocol client, registry, tool adapter |
+| **Approval** | `src/agent/approval/` | Diff viewer, confirmations, dry run mode, undo/redo |
+| **Clients** | `src/agent/clients/` | LLM provider clients with rate limit fallback |
+| **Core** | `src/agent/core/` | Feedback detection pipeline |
+| **Storage** | `src/agent/storage/` | Versioned YAML prompts, JSONL conversation logs |
+
+## Configuration
 
 ```bash
-git clone https://github.com/xmaks82/self-improving-agent.git
-cd self-improving-agent
+# API keys
+GROQ_API_KEY=gsk_...
+SAMBANOVA_API_KEY=...
+CEREBRAS_API_KEY=...
 
-cp .env.example .env
-nano .env  # Добавить GROQ_API_KEY
+# Default model (free)
+DEFAULT_MODEL=llama-4-maverick
 
-make run
+# Improvement pipeline (requires Anthropic API key)
+ANALYZER_MODEL=claude-sonnet
+VERSIONER_MODEL=claude-sonnet
+FEEDBACK_MODEL=claude-haiku
 ```
 
-### Локальная установка
-
-```bash
-git clone https://github.com/xmaks82/self-improving-agent.git
-cd self-improving-agent
-
-python -m venv venv
-source venv/bin/activate
-pip install -e .
-
-cp .env.example .env
-agent
-```
-
-### API ключи
-
-```bash
-# Groq - рекомендуется (бесплатно, быстро)
-GROQ_API_KEY=gsk_...          # https://console.groq.com/
-
-# SambaNova - САМЫЙ БЫСТРЫЙ (580 t/s, бесплатно)
-SAMBANOVA_API_KEY=...         # https://cloud.sambanova.ai/
-
-# Cerebras - 1M токенов/день бесплатно, ультра-быстрый
-CEREBRAS_API_KEY=...          # https://cloud.cerebras.ai/
-
-# Zhipu AI (glm-4.5-flash бесплатно, остальные платно)
-ZHIPU_API_KEY=...             # https://open.bigmodel.cn/
-```
-
-> ✅ Достаточно одного Groq ключа для полного функционала!
-
-## CLI команды
-
-### Основные
-
-| Команда | Описание |
-|---------|----------|
-| `/help` | Все команды |
-| `/model [NAME]` | Показать/сменить модель |
-| `/quit` | Выход |
-
-### Задачи
-
-| Команда | Описание |
-|---------|----------|
-| `/tasks` | Список задач |
-| `/task add TEXT` | Создать задачу |
-| `/task done ID` | Завершить задачу |
-| `/task start ID` | Начать задачу |
-| `/task delete ID` | Удалить задачу |
-| `/task clear` | Очистить завершённые |
-
-### MCP и инструменты
-
-| Команда | Описание |
-|---------|----------|
-| `/tools` | Список доступных инструментов |
-| `/mcp list` | Список MCP серверов |
-| `/mcp connect NAME` | Подключить MCP сервер |
-| `/mcp disconnect NAME` | Отключить сервер |
-
-### Промпты и версии
-
-| Команда | Описание |
-|---------|----------|
-| `/prompt` | Текущий системный промпт |
-| `/versions` | История версий |
-| `/rollback N` | Откатить к версии N |
-| `/feedback TEXT` | Отправить фидбек |
-
-### Прочее
-
-| Команда | Описание |
-|---------|----------|
-| `/stats` | Статистика сессии |
-| `/history` | История диалога |
-| `/status` | Статус улучшения |
-| `/reset` | Сбросить диалог |
-| `/clear` | Очистить экран |
-
-## Модули
-
-### Planning (`src/agent/planning/`)
-
-Система управления задачами:
-- `Task` — dataclass с статусами (pending/in_progress/completed/blocked)
-- `TaskManager` — JSONL хранилище в `data/tasks/`
-
-### MCP (`src/agent/mcp/`)
-
-Model Context Protocol интеграция:
-- `MCPClient` — подключение к серверам
-- `MCPRegistry` — конфигурация (YAML)
-- `MCPToolAdapter` — адаптер для LLM function calling
-
-Конфигурация серверов в `~/.agent/mcp.yaml`:
+MCP servers are configured in `~/.agent/mcp.yaml`:
 
 ```yaml
 servers:
   filesystem:
     command: npx
     args: ["-y", "@anthropic/mcp-server-filesystem", "/workspace"]
-    description: File system access
 
   github:
     command: npx
@@ -202,220 +244,44 @@ servers:
       GITHUB_TOKEN: ${GITHUB_TOKEN}
 ```
 
-### Tools (`src/agent/tools/`)
-
-Встроенные инструменты:
-
-| Инструмент | Описание |
-|------------|----------|
-| `read_file` | Чтение файлов |
-| `write_file` | Запись файлов |
-| `list_directory` | Листинг директории |
-| `run_command` | Выполнение команд (sandboxed) |
-| `git_status` | Git статус |
-| `git_diff` | Git diff |
-| `git_commit` | Git commit |
-| `search_files` | Поиск файлов |
-| `grep` | Поиск в содержимом |
-| `web_search` | Поиск в интернете |
-| `fetch_url` | Загрузка веб-страниц |
-
-### Memory (`src/agent/memory/`)
-
-Персистентная память между сессиями:
-
-| Тип | Описание |
-|-----|----------|
-| `EPISODIC` | Конкретные взаимодействия |
-| `SEMANTIC` | Знания о пользователе/проекте |
-| `PROCEDURAL` | Как выполнять задачи |
-| `WORKING` | Текущий контекст (короткоживущий) |
-
-API:
-```python
-manager = MemoryManager()
-await manager.remember("User prefers concise answers", memory_type=MemoryType.SEMANTIC)
-memories = await manager.recall("coding style")
-context = await manager.get_context()  # Для инъекции в промпт
-```
-
-### Sub-agents (`src/agent/agents/`)
-
-Специализированные агенты:
-
-| Агент | Задача |
-|-------|--------|
-| `CodeReviewer` | Ревью кода, поиск проблем |
-| `TestWriter` | Генерация тестов |
-| `Debugger` | Анализ ошибок, исправления |
-| `Researcher` | Поиск информации |
-| `Refactorer` | Рефакторинг кода |
-
-Оркестратор автоматически выбирает агента:
-```python
-orchestrator.select_agent("review this code")  # → CodeReviewer
-orchestrator.select_agent("fix this error")    # → Debugger
-```
-
-### Approval (`src/agent/approval/`)
-
-Human-in-the-loop система:
-
-- `DiffViewer` — визуальный diff перед изменениями
-- `Confirmator` — подтверждения для опасных операций
-- `DryRunSession` — режим preview без выполнения
-- `UndoManager` — undo/redo с историей
-
-## Модели
-
-### 🆓 Бесплатные (4 провайдера)
-
-#### Groq (рекомендуется)
-
-| Модель | ID |
-|--------|-----|
-| Llama 4 Maverick | `llama-4-maverick` |
-| Llama 3.3 70B | `llama-3.3-70b` |
-| Qwen3 32B | `qwen3-32b` |
-| Kimi K2 | `kimi-k2` |
-
-#### SambaNova (580 t/s — самый быстрый!)
-
-| Модель | ID |
-|--------|-----|
-| Llama 3.3 70B | `samba-llama-70b` |
-| Llama 3.1 8B | `samba-llama-8b` |
-| DeepSeek V3 | `deepseek-v3` |
-| DeepSeek R1 70B | `deepseek-r1-70b` |
-| QwQ 32B | `qwq-32b` |
-
-#### Cerebras (1M токенов / день)
-
-| Модель | ID |
-|--------|-----|
-| Llama 3.1 8B | `llama3.1-8b` |
-
-#### Zhipu AI
-
-| Модель | ID |
-|--------|-----|
-| GLM 4.5 Flash | `glm-4.5-flash` |
-
-### 💰 Платные
-
-#### Zhipu AI
-
-| Модель | ID | Цена (input/output за 1M) |
-|--------|-----|--------------------------|
-| GLM 4.7 | `glm-4.7` | $0.60 / $2.20 |
-| GLM 4.5 Air | `glm-4.5-air` | $0.20 / $1.10 |
-
-#### Anthropic
-
-| Модель | ID |
-|--------|-----|
-| Claude Opus 4.5 | `claude-opus-4.5` |
-| Claude Sonnet 4 | `claude-sonnet` |
-
-## Структура проекта
-
-```
-src/agent/
-├── main.py              # Точка входа
-├── config.py            # Конфигурация
-│
-├── agents/              # Агенты
-│   ├── base.py
-│   ├── main_agent.py
-│   ├── analyzer.py
-│   ├── versioner.py
-│   ├── orchestrator.py
-│   ├── sub_agent.py
-│   ├── code_reviewer.py
-│   ├── test_writer.py
-│   ├── debugger.py
-│   ├── researcher.py
-│   └── refactorer.py
-│
-├── planning/            # Задачи
-│   ├── task.py
-│   └── manager.py
-│
-├── mcp/                 # Model Context Protocol
-│   ├── client.py
-│   ├── registry.py
-│   ├── tools.py
-│   └── manager.py
-│
-├── tools/               # Инструменты
-│   ├── base.py
-│   ├── filesystem.py
-│   ├── shell.py
-│   ├── git.py
-│   ├── search.py
-│   ├── web_search.py
-│   ├── web_fetch.py
-│   └── registry.py
-│
-├── memory/              # Память
-│   ├── types.py
-│   ├── store.py
-│   ├── retriever.py
-│   ├── consolidator.py
-│   └── manager.py
-│
-├── approval/            # Human-in-the-loop
-│   ├── diff_viewer.py
-│   ├── confirmator.py
-│   ├── dry_run.py
-│   └── undo.py
-│
-├── clients/             # LLM провайдеры
-├── core/                # Детекция фидбека
-├── storage/             # Промпты и логи
-└── interfaces/          # CLI
-```
-
 ## Docker
 
 ```bash
-make help     # Все команды
-make run      # Запустить
-make build    # Собрать образ
-make update   # Обновить (git pull + rebuild)
-make version  # Версия
-make shell    # Shell в контейнере
+make help     # All commands
+make run      # Start agent
+make build    # Build image
+make update   # Update (git pull + rebuild)
+make version  # Show version
+make shell    # Shell into container
 ```
 
-## Конфигурация
+## Project Structure
 
-```bash
-# API ключи
-GROQ_API_KEY=gsk_...
-SAMBANOVA_API_KEY=...
-CEREBRAS_API_KEY=...
-
-# Модель по умолчанию (бесплатная)
-DEFAULT_MODEL=llama-4-maverick
-
-# Pipeline улучшения (требует Anthropic API key)
-ANALYZER_MODEL=claude-sonnet
-VERSIONER_MODEL=claude-sonnet
-FEEDBACK_MODEL=claude-haiku
+```
+src/agent/
+├── main.py              # Entry point
+├── config.py            # Configuration
+├── agents/              # Main agent + sub-agents
+├── planning/            # Task management
+├── mcp/                 # Model Context Protocol
+├── tools/               # Built-in tools (11)
+├── memory/              # Persistent memory (SQLite)
+├── approval/            # Human-in-the-loop
+├── clients/             # LLM provider clients
+├── core/                # Feedback detection
+├── storage/             # Prompts & logs
+└── interfaces/          # CLI
 ```
 
-## Версии
+## Contributing
 
-- **v1.0.0** — Полный agentic функционал
-- **v0.3.0** — Cerebras интеграция, rate limit fallback
-- **v0.2.0** — Multi-provider support
-- **v0.1.0** — Initial release
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-## Лицензия
+## License
 
 MIT
 
-## Вдохновение
+## Inspiration
 
 - [ERC3 Winning Solution](https://erc.timetoact-group.at/assets/erc3.html)
 - [Anthropic Multi-Agent Systems](https://www.anthropic.com/engineering/multi-agent-research-system)
