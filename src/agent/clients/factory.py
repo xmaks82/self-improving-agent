@@ -42,6 +42,10 @@ MODEL_PROVIDERS = {
     "glm-4.5-air": "zhipu",
     "glm": "zhipu",
 
+    # === OPENROUTER (free models, 200+ models) ===
+    "qwen3.6-plus": "openrouter",
+    "openrouter-free": "openrouter",
+
     # === SAMBANOVA (free, ultra-fast 580 t/s) ===
     "sambanova": "sambanova",
     "llama-4-maverick": "sambanova",
@@ -148,6 +152,13 @@ def create_client(
             model=model,
         )
 
+    elif provider == "openrouter":
+        from .openrouter_client import OpenRouterClient
+        return OpenRouterClient(
+            api_key=os.getenv("OPENROUTER_API_KEY"),
+            model=model,
+        )
+
     else:
         raise ValueError(f"Unknown provider for model: {model}")
 
@@ -159,6 +170,7 @@ def get_available_models() -> dict[str, list[str]]:
     from .cerebras_client import CerebrasClient
     from .zhipu_client import ZhipuClient
     from .sambanova_client import SambanovaClient
+    from .openrouter_client import OpenRouterClient
 
     return {
         "anthropic": AnthropicClient.list_models(),
@@ -166,6 +178,7 @@ def get_available_models() -> dict[str, list[str]]:
         "cerebras": CerebrasClient.list_models(),
         "zhipu": ZhipuClient.list_models(),
         "sambanova": SambanovaClient.list_models(),
+        "openrouter": OpenRouterClient.list_models(),
     }
 
 
@@ -174,11 +187,13 @@ def get_free_models() -> dict[str, list[str]]:
     from .groq_client import GroqClient
     from .cerebras_client import CerebrasClient
     from .sambanova_client import SambanovaClient
+    from .openrouter_client import OpenRouterClient
 
     return {
         "sambanova (free, 580 t/s)": SambanovaClient.list_models(),
         "groq (free, fast)": GroqClient.list_models(),
         "cerebras (free 1M/day, ultra-fast)": CerebrasClient.list_models(),
+        "openrouter (free, 1M ctx)": OpenRouterClient.list_models(),
         "zhipu (free)": ["glm-4.5-flash", "glm-4.7-flash"],
     }
 

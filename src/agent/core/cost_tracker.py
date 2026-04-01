@@ -8,6 +8,7 @@ MODEL_PRICES: dict[str, dict[str, float]] = {
     "groq": {"input": 0.0, "output": 0.0},
     "cerebras": {"input": 0.0, "output": 0.0},
     "sambanova": {"input": 0.0, "output": 0.0},
+    "openrouter": {"input": 0.0, "output": 0.0},
     "zhipu/glm-4.5-flash": {"input": 0.0, "output": 0.0},
     "zhipu/glm-4.7-flash": {"input": 0.0, "output": 0.0},
     # Paid - Anthropic (current gen pricing)
