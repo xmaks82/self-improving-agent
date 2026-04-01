@@ -286,6 +286,9 @@ class AgentCLI:
         elif cmd == "/summary":
             await self._handle_summary()
 
+        elif cmd == "/auth":
+            await self._handle_auth(args)
+
         elif cmd == "/fork":
             await self._handle_fork(args)
 
@@ -354,6 +357,7 @@ class AgentCLI:
             ("/plan TASK", "Run Plan agent (read-only architecture design)"),
             ("/explore QUERY", "Run Explore agent (read-only codebase search)"),
             ("/verify", "Run Verification agent on recent changes"),
+            ("/auth [status|paste]", "Manage Claude subscription auth"),
             ("/voice", "Push-to-talk voice input"),
             ("/team list|add|show", "Team shared memory"),
             ("/summary", "Show/update session notes"),
@@ -960,6 +964,87 @@ class AgentCLI:
             console.print(table)
         except Exception as e:
             console.print(f"[red]Plugin error: {e}[/red]")
+
+    async def _handle_auth(self, args: str):
+        """Manage Claude subscription authentication."""
+        from ..auth.oauth import OAuthManager
+
+        parts = args.strip().split(maxsplit=1)
+        subcmd = parts[0].lower() if parts else "status"
+
+        mgr = OAuthManager()
+
+        if subcmd == "status":
+            tokens = mgr.load_tokens()
+            if not tokens:
+                console.print("[dim]No OAuth token found.[/dim]")
+                console.print(
+                    "[dim]Options:\n"
+                    "  1. Run `claude setup-token` in Claude Code CLI, then /auth paste TOKEN\n"
+                    "  2. Set CLAUDE_CODE_OAUTH_TOKEN env var\n"
+                    "  3. Use ANTHROPIC_API_KEY for pay-per-token billing[/dim]"
+                )
+                return
+
+            table = Table(title="Auth Status", show_header=False)
+            table.add_column("Key", style="cyan")
+            table.add_column("Value")
+            table.add_row("Mode", "Subscription (OAuth)" if tokens.is_subscriber else "OAuth")
+            table.add_row("Expired", "[red]Yes[/red]" if tokens.is_expired else "[green]No[/green]")
+            if tokens.subscription_type:
+                table.add_row("Plan", tokens.subscription_type.upper())
+            if tokens.scopes:
+                table.add_row("Scopes", ", ".join(tokens.scopes))
+            console.print(table)
+
+            # Try to get subscription info
+            console.print("[dim]Fetching subscription info...[/dim]")
+            info = await mgr.get_subscription_info()
+            if info:
+                if info.email:
+                    console.print(f"  Email: {info.email}")
+                if info.subscription_type:
+                    console.print(f"  Plan: [green]{info.subscription_type.upper()}[/green]")
+                if info.rate_limit_tier:
+                    console.print(f"  Rate tier: {info.rate_limit_tier}")
+
+        elif subcmd == "paste":
+            token = parts[1].strip() if len(parts) > 1 else ""
+            if not token:
+                console.print("[yellow]Paste your OAuth token (from `claude setup-token`):[/yellow]")
+                token = await asyncio.to_thread(self.session.prompt, "Token: ")
+                token = token.strip()
+            if not token:
+                console.print("[red]No token provided.[/red]")
+                return
+
+            # Save to credentials file
+            import json
+            cred_path = Path.home() / ".claude" / ".credentials.json"
+            cred_path.parent.mkdir(parents=True, exist_ok=True)
+            data = {}
+            if cred_path.exists():
+                try:
+                    data = json.loads(cred_path.read_text())
+                except Exception:
+                    pass
+            data["claudeAiOauth"] = {
+                "accessToken": token,
+                "scopes": ["user:profile", "user:inference"],
+            }
+            cred_path.write_text(json.dumps(data, indent=2))
+            console.print(f"[green]Token saved to {cred_path}[/green]")
+            console.print("[dim]Restart the agent or switch to a Claude model to use it.[/dim]")
+
+        elif subcmd == "refresh":
+            tokens = await mgr.refresh_if_needed()
+            if tokens:
+                console.print("[green]Token refreshed.[/green]")
+            else:
+                console.print("[red]Refresh failed. Re-run `claude setup-token`.[/red]")
+
+        else:
+            console.print("[dim]Usage: /auth [status|paste|refresh][/dim]")
 
     async def _handle_voice(self):
         """Push-to-talk voice input."""

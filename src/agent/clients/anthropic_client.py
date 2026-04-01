@@ -37,11 +37,31 @@ class AnthropicClient(BaseLLMClient):
         "claude-haiku-4-5-20251001": "claude-haiku-4-5-20251001",
     }
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "claude-sonnet"):
-        self.client = Anthropic(api_key=api_key) if api_key else Anthropic()
-        self.async_client = (
-            AsyncAnthropic(api_key=api_key) if api_key else AsyncAnthropic()
-        )
+    def __init__(self, api_key: Optional[str] = None, model: str = "claude-sonnet",
+                 auth_token: Optional[str] = None):
+        """
+        Initialize Anthropic client.
+
+        Args:
+            api_key: API key (pay-per-token billing)
+            model: Model name
+            auth_token: OAuth token from Claude subscription (Pro/Max/Team).
+                        If provided, uses subscription billing instead of API key.
+                        Get it via: claude setup-token
+        """
+        if auth_token:
+            # Subscription auth — uses OAuth token
+            self.client = Anthropic(api_key=None, auth_token=auth_token)
+            self.async_client = AsyncAnthropic(api_key=None, auth_token=auth_token)
+            self._auth_mode = "subscription"
+        elif api_key:
+            self.client = Anthropic(api_key=api_key)
+            self.async_client = AsyncAnthropic(api_key=api_key)
+            self._auth_mode = "api_key"
+        else:
+            self.client = Anthropic()
+            self.async_client = AsyncAnthropic()
+            self._auth_mode = "env"
         self.model = self.MODELS.get(model, model)
 
     def chat(

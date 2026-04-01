@@ -100,6 +100,13 @@ def create_client(
 
     if provider == "anthropic":
         from .anthropic_client import AnthropicClient
+        # Try OAuth subscription token first, then API key
+        auth_token = os.getenv("CLAUDE_CODE_OAUTH_TOKEN")
+        if not auth_token:
+            from ..auth.oauth import get_auth_token
+            auth_token = get_auth_token()
+        if auth_token:
+            return AnthropicClient(auth_token=auth_token, model=model)
         return AnthropicClient(
             api_key=anthropic_api_key or os.getenv("ANTHROPIC_API_KEY"),
             model=model,
