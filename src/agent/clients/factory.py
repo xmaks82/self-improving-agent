@@ -100,17 +100,25 @@ def create_client(
 
     if provider == "anthropic":
         from .anthropic_client import AnthropicClient
-        # Try OAuth subscription token first, then API key
+        api_key = anthropic_api_key or os.getenv("ANTHROPIC_API_KEY")
+
+        # Try OAuth subscription first, fallback to API key on failure
         auth_token = os.getenv("CLAUDE_CODE_OAUTH_TOKEN")
         if not auth_token:
-            from ..auth.oauth import get_auth_token
-            auth_token = get_auth_token()
+            try:
+                from ..auth.oauth import get_auth_token
+                auth_token = get_auth_token()
+            except Exception:
+                auth_token = None
+
         if auth_token:
-            return AnthropicClient(auth_token=auth_token, model=model)
-        return AnthropicClient(
-            api_key=anthropic_api_key or os.getenv("ANTHROPIC_API_KEY"),
-            model=model,
-        )
+            # Pass both: auth_token for subscription, api_key as fallback
+            return AnthropicClient(
+                auth_token=auth_token,
+                api_key=api_key,  # used if OAuth gets blocked
+                model=model,
+            )
+        return AnthropicClient(api_key=api_key, model=model)
 
     elif provider == "groq":
         from .groq_client import GroqClient

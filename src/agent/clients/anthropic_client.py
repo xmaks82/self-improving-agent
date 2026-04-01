@@ -42,15 +42,16 @@ class AnthropicClient(BaseLLMClient):
         """
         Initialize Anthropic client.
 
-        Args:
-            api_key: API key (pay-per-token billing)
-            model: Model name
-            auth_token: OAuth token from Claude subscription (Pro/Max/Team).
-                        If provided, uses subscription billing instead of API key.
-                        Get it via: claude setup-token
+        Auth priority: auth_token (subscription) > api_key > ANTHROPIC_API_KEY env.
+        Does NOT send Claude Code-specific headers (x-app, session ID, etc.).
         """
+        import os
+
+        # Fallback API key for graceful degradation if OAuth fails
+        self._fallback_api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        self._auth_token = auth_token
+
         if auth_token:
-            # Subscription auth — uses OAuth token
             self.client = Anthropic(api_key=None, auth_token=auth_token)
             self.async_client = AsyncAnthropic(api_key=None, auth_token=auth_token)
             self._auth_mode = "subscription"
@@ -64,6 +65,38 @@ class AnthropicClient(BaseLLMClient):
             self._auth_mode = "env"
         self.model = self.MODELS.get(model, model)
 
+    def _fallback_to_api_key(self) -> bool:
+        """Switch from OAuth to API key if OAuth is blocked/failing."""
+        if not self._fallback_api_key:
+            return False
+        self.client = Anthropic(api_key=self._fallback_api_key)
+        self.async_client = AsyncAnthropic(api_key=self._fallback_api_key)
+        self._auth_mode = "api_key_fallback"
+        # Mark OAuth as blocked in the global manager
+        try:
+            from ..auth.oauth import get_oauth_manager
+            get_oauth_manager()._oauth_blocked = True
+        except Exception:
+            pass
+        import logging
+        logging.getLogger(__name__).warning(
+            "OAuth blocked — switched to API key billing"
+        )
+        return True
+
+    def _should_fallback(self, error: Exception) -> bool:
+        """Check if error warrants OAuth → API key fallback."""
+        if self._auth_mode != "subscription":
+            return False
+        status = getattr(getattr(error, 'response', None), 'status_code', 0)
+        if status in (401, 403):
+            return self._fallback_to_api_key()
+        # Check for auth-related error messages
+        msg = str(error).lower()
+        if any(w in msg for w in ("unauthorized", "forbidden", "token", "revoked", "blocked")):
+            return self._fallback_to_api_key()
+        return False
+
     def chat(
         self,
         messages: list[dict],
@@ -71,7 +104,7 @@ class AnthropicClient(BaseLLMClient):
         max_tokens: int = 4096,
         tools: Optional[list[dict]] = None,
     ) -> LLMResponse:
-        """Synchronous chat completion."""
+        """Synchronous chat completion with OAuth fallback."""
         kwargs = {
             "model": self.model,
             "max_tokens": max_tokens,
@@ -92,6 +125,10 @@ class AnthropicClient(BaseLLMClient):
                 model=self.model,
                 message=str(e),
             ) from e
+        except Exception as e:
+            if self._should_fallback(e):
+                return self.chat(messages, system, max_tokens, tools)
+            raise
 
         # Extract text content
         content = ""
