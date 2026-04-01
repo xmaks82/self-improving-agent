@@ -1,7 +1,7 @@
 [project]
 name = "self-improving-agent"
-version = "1.2.0"
-description = "Self-improving AI agent with composable prompts, verification, memory, tools, sub-agents. Supports 5 LLM providers including free APIs."
+version = "1.3.0"
+description = "Self-improving AI agent with 16 interconnected agents, composable prompts, permanent prompt evolution. 5 LLM providers including free APIs."
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.40.0",

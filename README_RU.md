@@ -1,4 +1,4 @@
-# Self-Improving AI Agent v1.2
+# Self-Improving AI Agent v1.3
 
 > **[English version](README.md)**
 
