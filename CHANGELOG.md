@@ -6,6 +6,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-06-01
+
+### Changed
+- **Provider model refresh (verified against live APIs / provider docs, 2026-06-01):**
+  - **Anthropic** — added `claude-opus-4.8` (new flagship) and `claude-opus-4.7`.
+  - **SambaNova** — `minimax-m2.5` → `minimax-m2.7`; added `gemma-4-31b`, `gemma-3-12b`
+    (live `/models`); removed `deepseek-r1` (no longer served by SambaNova).
+  - **OpenRouter** — `qwen3.6-plus-preview` retired → `qwen3-next` (`qwen3-next-80b-a3b-instruct:free`);
+    added `qwen3-coder`, `kimi-k2.6`, `glm-4.5-air-free` (live `/models`). Old `qwen3.6-plus`
+    kept as an alias.
+  - **Groq** — removed `kimi-k2` (deprecated by Groq 2026-03-23 → gpt-oss-120b); Kimi now
+    routes to OpenRouter (`kimi-k2.6`).
+  - **Cerebras / Zhipu** — already current (GLM-5.1/5/4.7 line, Qwen3-235B, GLM-4.7) — no change.
+
 ## [1.4.0] - 2026-06-01
 
 ### Added

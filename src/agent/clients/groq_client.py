@@ -41,8 +41,8 @@ class GroqClient(BaseLLMClient):
         # Qwen 3 - thinking mode
         "qwen3-32b": "qwen/qwen3-32b",
 
-        # Kimi K2 - Moonshot AI
-        "kimi-k2": "moonshotai/kimi-k2-instruct",
+        # Kimi K2 — снят с Groq 2026-03-23 (→ gpt-oss-120b). Живёт на OpenRouter
+        # как kimi-k2.6:free. Здесь убран, чтобы не слать мёртвый id.
 
         # GPT-OSS - OpenAI open source
         "gpt-oss-120b": "openai/gpt-oss-120b",

@@ -20,7 +20,9 @@ class AnthropicClient(BaseLLMClient):
 
     # Available Anthropic models
     MODELS = {
-        # Current generation
+        # Current generation (flagship — Opus 4.8, 2026)
+        "claude-opus-4.8": "claude-opus-4-8",
+        "claude-opus-4.7": "claude-opus-4-7",
         "claude-opus-4.6": "claude-opus-4-6",
         "claude-sonnet-4.6": "claude-sonnet-4-6",
         "claude-haiku": "claude-haiku-4-5-20251001",
@@ -29,6 +31,8 @@ class AnthropicClient(BaseLLMClient):
         "claude-sonnet-4.5": "claude-sonnet-4-5-20250929",
         "claude-opus": "claude-opus-4-20250514",
         # Full model names
+        "claude-opus-4-8": "claude-opus-4-8",
+        "claude-opus-4-7": "claude-opus-4-7",
         "claude-opus-4-6": "claude-opus-4-6",
         "claude-sonnet-4-6": "claude-sonnet-4-6",
         "claude-opus-4-5-20251101": "claude-opus-4-5-20251101",

@@ -39,12 +39,12 @@ Next responses use the upgraded "brain"
 ### 6 Free LLM Providers
 | Provider | Speed | Models | Key |
 |----------|-------|--------|-----|
-| **Groq** | Fast | Llama 4 Scout, Llama 3.3 70B, Qwen3 32B, Kimi K2, GPT-OSS | [console.groq.com](https://console.groq.com/) |
-| **SambaNova** | 580 t/s | Llama 4 Maverick, DeepSeek V3.2/R1, GPT-OSS | [cloud.sambanova.ai](https://cloud.sambanova.ai/) |
-| **Cerebras** | Ultra-fast | Llama 3.1 8B, Qwen3 235B, GPT-OSS, GLM 4.7 | [cloud.cerebras.ai](https://cloud.cerebras.ai/) |
-| **OpenRouter** | 1M ctx | Qwen 3.6 Plus (1M context, tool use) | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| **Zhipu** | No limits | GLM 4.5 Flash, GLM 4.7 Flash | [open.bigmodel.cn](https://open.bigmodel.cn/) |
-| **Anthropic** | OAuth/API | Claude Opus 4.6, Sonnet 4.6, Haiku 4.5 | [console.anthropic.com](https://console.anthropic.com/) |
+| **Groq** | Fast | Llama 4 Scout, Llama 3.3 70B, Qwen3 32B, GPT-OSS 120B/20B | [console.groq.com](https://console.groq.com/) |
+| **SambaNova** | 580 t/s | Llama 4 Maverick, DeepSeek V3.1/V3.2, MiniMax M2.7, Gemma 4, GPT-OSS | [cloud.sambanova.ai](https://cloud.sambanova.ai/) |
+| **Cerebras** | Ultra-fast | Llama 3.1 8B, Qwen3 235B, GPT-OSS 120B, GLM 4.7 | [cloud.cerebras.ai](https://cloud.cerebras.ai/) |
+| **OpenRouter** | Free tier | Qwen3-Next, Qwen3-Coder, Kimi K2.6, GLM 4.5 Air | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| **Zhipu** | No limits | GLM 4.5/4.7 Flash (free), GLM 5.1/5/4.7 | [open.bigmodel.cn](https://open.bigmodel.cn/) |
+| **Anthropic** | OAuth/API | Claude Opus 4.8/4.7/4.6, Sonnet 4.6, Haiku 4.5 | [console.anthropic.com](https://console.anthropic.com/) |
 
 **Claude subscription auth**: Use your Pro/Max subscription via OAuth — `/auth paste` with setup-token. Auto-fallback to API key if blocked.
 

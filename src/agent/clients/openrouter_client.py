@@ -34,10 +34,15 @@ class OpenRouterClient(BaseLLMClient):
 
     # Curated models (free and paid)
     MODELS = {
-        # Free models
-        "qwen3.6-plus": "qwen/qwen3.6-plus-preview:free",
+        # Free models (актуально на 2026-06, сверено с live /models OpenRouter).
+        # qwen3.6-plus-preview снят — заменён на qwen3-next (general, длинный контекст).
+        "qwen3-next": "qwen/qwen3-next-80b-a3b-instruct:free",
+        "qwen3-coder": "qwen/qwen3-coder:free",
+        "kimi-k2.6": "moonshotai/kimi-k2.6:free",
+        "glm-4.5-air-free": "z-ai/glm-4.5-air:free",
         "openrouter-free": "openrouter/free",
-        # Add more free models as needed
+        # alias на прежнее имя, чтобы старые конфиги не падали
+        "qwen3.6-plus": "qwen/qwen3-next-80b-a3b-instruct:free",
     }
 
     def __init__(self, api_key: Optional[str] = None, model: str = "qwen3.6-plus"):

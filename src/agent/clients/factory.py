@@ -6,9 +6,11 @@ import os
 from .base import BaseLLMClient
 
 
-# Model to provider mapping (updated 2026-03-31)
+# Model to provider mapping (updated 2026-06-01)
 MODEL_PROVIDERS = {
     # === ANTHROPIC (paid) ===
+    "claude-opus-4.8": "anthropic",
+    "claude-opus-4.7": "anthropic",
     "claude-opus-4.6": "anthropic",
     "claude-sonnet-4.6": "anthropic",
     "claude-opus-4.5": "anthropic",
@@ -21,7 +23,6 @@ MODEL_PROVIDERS = {
     "llama-3.3-70b": "groq",
     "llama-3.1-8b": "groq",
     "qwen3-32b": "groq",
-    "kimi-k2": "groq",
     "gpt-oss-120b": "groq",
     "gpt-oss-20b": "groq",
 
@@ -43,7 +44,11 @@ MODEL_PROVIDERS = {
     "glm": "zhipu",
 
     # === OPENROUTER (free models, 200+ models) ===
-    "qwen3.6-plus": "openrouter",
+    "qwen3-next": "openrouter",
+    "qwen3-coder": "openrouter",
+    "kimi-k2.6": "openrouter",
+    "glm-4.5-air-free": "openrouter",
+    "qwen3.6-plus": "openrouter",   # alias → qwen3-next (старое имя)
     "openrouter-free": "openrouter",
 
     # === SAMBANOVA (free, ultra-fast 580 t/s) ===
@@ -52,9 +57,10 @@ MODEL_PROVIDERS = {
     "samba-llama-70b": "sambanova",
     "deepseek-v3.1": "sambanova",
     "deepseek-v3.2": "sambanova",
-    "deepseek-r1": "sambanova",
     "gpt-oss-120b-samba": "sambanova",
-    "minimax-m2.5": "sambanova",
+    "minimax-m2.7": "sambanova",
+    "gemma-4-31b": "sambanova",
+    "gemma-3-12b": "sambanova",
 }
 
 
@@ -67,13 +73,15 @@ def get_provider(model: str) -> str:
     # Check prefix
     if model.startswith("claude"):
         return "anthropic"
-    if model.startswith("kimi") or model.startswith("gpt-oss"):
+    if model.startswith("kimi"):
+        return "openrouter"  # Kimi снят с Groq 2026-03 → теперь через OpenRouter
+    if model.startswith("gpt-oss"):
         return "groq"
     if model.startswith("llama3.1") or model.startswith("cerebras") or model.startswith("qwen-3-235b"):
         return "cerebras"
     if model.startswith("glm") or model.startswith("codegeex"):
         return "zhipu"
-    if model.startswith("samba") or model.startswith("Meta-Llama") or model.startswith("DeepSeek") or model.startswith("Qwen") or model.startswith("Llama-4") or model.startswith("minimax"):
+    if model.startswith("samba") or model.startswith("Meta-Llama") or model.startswith("DeepSeek") or model.startswith("Qwen") or model.startswith("Llama-4") or model.startswith("minimax") or model.startswith("gemma"):
         return "sambanova"
     if model.startswith("llama-"):
         return "groq"

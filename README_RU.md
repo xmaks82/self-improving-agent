@@ -23,12 +23,12 @@
 
 | Провайдер | Модели | Ключ |
 |-----------|--------|------|
-| **Groq** | Llama 4 Scout, 3.3 70B, Qwen3, Kimi K2, GPT-OSS | [console.groq.com](https://console.groq.com/) |
-| **SambaNova** (580 t/s) | Llama 4 Maverick, DeepSeek V3.2/R1 | [cloud.sambanova.ai](https://cloud.sambanova.ai/) |
+| **Groq** | Llama 4 Scout, 3.3 70B, Qwen3 32B, GPT-OSS 120B/20B | [console.groq.com](https://console.groq.com/) |
+| **SambaNova** (580 t/s) | Llama 4 Maverick, DeepSeek V3.1/V3.2, MiniMax M2.7, Gemma 4 | [cloud.sambanova.ai](https://cloud.sambanova.ai/) |
 | **Cerebras** (1M/день) | Llama 3.1, Qwen3 235B, GPT-OSS, GLM 4.7 | [cloud.cerebras.ai](https://cloud.cerebras.ai/) |
-| **OpenRouter** (1M ctx) | Qwen 3.6 Plus (1M контекст, tool use) | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| **Zhipu** (без лимитов) | GLM 4.5/4.7 Flash | [open.bigmodel.cn](https://open.bigmodel.cn/) |
-| **Anthropic** (OAuth/API) | Claude Opus 4.6, Sonnet 4.6, Haiku 4.5 | OAuth подписка или API |
+| **OpenRouter** (free) | Qwen3-Next, Qwen3-Coder, Kimi K2.6, GLM 4.5 Air | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| **Zhipu** (без лимитов) | GLM 4.5/4.7 Flash (free), GLM 5.1/5/4.7 | [open.bigmodel.cn](https://open.bigmodel.cn/) |
+| **Anthropic** (OAuth/API) | Claude Opus 4.8/4.7/4.6, Sonnet 4.6, Haiku 4.5 | OAuth подписка или API |
 
 **Подписка Claude**: `/auth paste` с setup-token. Авто-fallback на API key при блокировке.
 

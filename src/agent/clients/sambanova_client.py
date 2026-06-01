@@ -33,16 +33,19 @@ class SambanovaClient(BaseLLMClient):
         "llama-3.3-70b": "Meta-Llama-3.3-70B-Instruct",
         "samba-llama-70b": "Meta-Llama-3.3-70B-Instruct",
 
-        # DeepSeek
+        # DeepSeek (R1 снят с SambaNova 2026 — убран)
         "deepseek-v3.1": "DeepSeek-V3.1",
         "deepseek-v3.2": "DeepSeek-V3.2",
-        "deepseek-r1": "DeepSeek-R1",
 
         # GPT-OSS
         "gpt-oss-120b-samba": "gpt-oss-120b",
 
-        # MiniMax
-        "minimax-m2.5": "MiniMax-M2.5",
+        # MiniMax (M2.5 → M2.7, актуально на 2026-06)
+        "minimax-m2.7": "MiniMax-M2.7",
+
+        # Gemma
+        "gemma-4-31b": "gemma-4-31B-it",
+        "gemma-3-12b": "gemma-3-12b-it",
 
         # Aliases
         "sambanova": "Meta-Llama-3.3-70B-Instruct",
