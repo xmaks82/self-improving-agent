@@ -1,5 +1,6 @@
 # Environment
 .env
+.env.*
 venv/
 .venv/
 __pycache__/
@@ -37,3 +38,6 @@ htmlcov/
 claw-code-main.zip
 .github/
 src.zip
+
+# private agent memory — never publish
+data/memory/

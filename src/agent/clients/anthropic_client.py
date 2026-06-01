@@ -42,8 +42,10 @@ class AnthropicClient(BaseLLMClient):
         """
         Initialize Anthropic client.
 
-        Auth priority: auth_token (subscription) > api_key > ANTHROPIC_API_KEY env.
-        Does NOT send Claude Code-specific headers (x-app, session ID, etc.).
+        Auth priority:
+        1. Proxy mode (ANTHROPIC_BASE_URL set) — routes through CLIProxyAPI proxy
+        2. auth_token (subscription OAuth) — direct to Anthropic
+        3. api_key > ANTHROPIC_API_KEY env — standard API billing
         """
         import os
 
@@ -51,7 +53,22 @@ class AnthropicClient(BaseLLMClient):
         self._fallback_api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self._auth_token = auth_token
 
-        if auth_token:
+        # Proxy mode: route through CLIProxyAPI (subscription via OAuth proxy)
+        proxy_base_url = os.getenv("ANTHROPIC_BASE_URL")
+        proxy_api_key = os.getenv("ANTHROPIC_PROXY_KEY")
+
+        if proxy_base_url:
+            client_kwargs = {"base_url": proxy_base_url}
+            if proxy_api_key:
+                client_kwargs["api_key"] = proxy_api_key
+            elif api_key:
+                client_kwargs["api_key"] = api_key
+            else:
+                client_kwargs["api_key"] = os.getenv("ANTHROPIC_API_KEY", "proxy-key")
+            self.client = Anthropic(**client_kwargs)
+            self.async_client = AsyncAnthropic(**client_kwargs)
+            self._auth_mode = "proxy"
+        elif auth_token:
             self.client = Anthropic(api_key=None, auth_token=auth_token)
             self.async_client = AsyncAnthropic(api_key=None, auth_token=auth_token)
             self._auth_mode = "subscription"

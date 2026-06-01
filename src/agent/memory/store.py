@@ -196,6 +196,37 @@ class MemoryStore:
 
         return memories
 
+    async def get_embedded(
+        self,
+        memory_types: Optional[list[MemoryType]] = None,
+        limit: int = 2000,
+    ) -> list[Memory]:
+        """Get memories that have a stored embedding (for vector search).
+
+        Working memory is excluded unless explicitly requested via memory_types.
+        """
+        await self.initialize()
+
+        sql = "SELECT * FROM memories WHERE embedding IS NOT NULL"
+        params: list = []
+        if memory_types:
+            placeholders = ",".join("?" for _ in memory_types)
+            sql += f" AND type IN ({placeholders})"
+            params.extend(t.value for t in memory_types)
+        else:
+            sql += " AND type != ?"
+            params.append(MemoryType.WORKING.value)
+        sql += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+
+        memories = []
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(sql, params) as cursor:
+                async for row in cursor:
+                    memories.append(Memory.from_dict(dict(row)))
+        return memories
+
     async def get_recent(
         self,
         limit: int = 10,

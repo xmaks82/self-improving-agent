@@ -7,6 +7,7 @@ from .types import Memory, MemoryType
 from .store import MemoryStore
 from .retriever import MemoryRetriever
 from .consolidator import MemoryConsolidator
+from .embeddings import EmbeddingsClient
 
 
 class MemoryManager:
@@ -22,7 +23,8 @@ class MemoryManager:
 
     def __init__(self, db_path: Optional[Path] = None):
         self.store = MemoryStore(db_path)
-        self.retriever = MemoryRetriever(self.store)
+        self.embeddings = EmbeddingsClient()
+        self.retriever = MemoryRetriever(self.store, self.embeddings)
         self.consolidator = MemoryConsolidator(self.store)
         self._initialized = False
 
@@ -65,6 +67,9 @@ class MemoryManager:
             tags=tags,
             metadata=metadata,
         )
+        # Best-effort embedding for hybrid recall (None → keyword-only, no break).
+        if self.embeddings.available:
+            memory.embedding = await self.embeddings.embed(content)
         return await self.store.store(memory)
 
     async def remember_interaction(

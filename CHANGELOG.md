@@ -6,7 +6,27 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-01
+
 ### Added
+- **Hybrid memory retrieval** — long-term memory now combines vector similarity
+  (embeddings) with keyword matching, fused via Reciprocal Rank Fusion (RRF).
+  Optional and graceful: without an embeddings backend the agent falls back to
+  keyword search, so it works out of the box.
+- **Pluggable embeddings backend** — any OpenAI-compatible `/v1/embeddings`
+  endpoint (local llama-server, Ollama, OpenAI, …) via `EMBEDDINGS_URL`. New
+  `EmbeddingsConfig` + `memory/embeddings.py` client. Best-effort: any failure
+  transparently falls back to keyword retrieval. Endpoint stays in your private
+  `.env` — nothing of your infrastructure ships in the repo.
+- Embeddings are computed on memory write and stored in the existing `embedding`
+  column; query embedding + cosine ranking over the embedded pool at recall time.
+
+### Fixed
+- **Non-Latin keyword extraction** — keyword tokenizer used an ASCII-only regex
+  (`[a-zA-Z]`) and silently dropped Cyrillic (and other scripts), so keyword
+  recall returned nothing for non-English queries. Now Unicode-aware (`[^\W\d_]`).
+
+### Changed
 - **Claude Opus 4.6** — Anthropic's new flagship model (model ID: `claude-opus-4-6`, 200K context, 128K max output, $5/$25 per 1M tokens)
 - Updated Anthropic model mappings: Sonnet 4.5, Haiku 4.5
 - Claude Opus 4.5 marked as legacy

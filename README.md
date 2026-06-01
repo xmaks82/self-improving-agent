@@ -65,6 +65,8 @@ Next responses use the upgraded "brain"
 | `/debug [issue]` | Structured debugging workflow |
 
 ### Session & Memory
+- **Hybrid Long-Term Memory** — vector similarity (embeddings) + keyword matching fused via Reciprocal Rank Fusion. Optional & graceful: no embeddings backend → automatic keyword-only fallback. Point `EMBEDDINGS_URL` at any OpenAI-compatible endpoint (local llama-server, Ollama, OpenAI). Unicode-aware (works for non-English memory)
+- **4 Memory Types** — episodic, semantic, procedural, working — with importance decay & promotion (consolidation)
 - **Context Compaction** — auto-summarize old messages (`/compact`)
 - **Session Memory** — background auto-notes maintained by LLM (`/summary`)
 - **Session Persistence** — save/resume across restarts (`/sessions`, `/resume`)

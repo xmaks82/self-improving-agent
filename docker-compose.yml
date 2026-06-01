@@ -21,7 +21,17 @@ services:
       # Thresholds
       - FEEDBACK_CONFIDENCE_THRESHOLD=${FEEDBACK_CONFIDENCE_THRESHOLD:-0.8}
       - IMPROVEMENT_CONFIDENCE_THRESHOLD=${IMPROVEMENT_CONFIDENCE_THRESHOLD:-0.6}
+      # Optional: hybrid memory (vector + keyword). Unset → keyword-only.
+      # Point at your own OpenAI-compatible /v1/embeddings endpoint via .env.
+      - EMBEDDINGS_URL=${EMBEDDINGS_URL:-}
+      - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-default}
+      - EMBEDDINGS_TIMEOUT=${EMBEDDINGS_TIMEOUT:-10}
+      - EMBEDDINGS_ENABLED=${EMBEDDINGS_ENABLED:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Reach host-published services (e.g. a local embeddings server) from the
+    # container via host.docker.internal.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # Persist all data
       - ./data/prompts:/app/data/prompts

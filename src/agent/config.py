@@ -42,6 +42,32 @@ class ThresholdConfig:
 
 
 @dataclass
+class EmbeddingsConfig:
+    """Optional embeddings backend for hybrid (vector + keyword) memory recall.
+
+    Disabled unless EMBEDDINGS_URL is set → the agent runs on keyword search
+    out of the box. Point the URL at your own OpenAI-compatible endpoint.
+    """
+    url: Optional[str] = None
+    model: str = "default"
+    timeout: float = 10.0
+    enabled: bool = False
+
+    @classmethod
+    def from_env(cls) -> "EmbeddingsConfig":
+        url = (os.getenv("EMBEDDINGS_URL") or "").strip() or None
+        # Пустая строка (docker-compose ${VAR:-}) трактуется как unset → auto по url.
+        explicit = (os.getenv("EMBEDDINGS_ENABLED") or "").strip()
+        enabled = bool(url) if explicit == "" else (explicit == "1")
+        return cls(
+            url=url,
+            model=os.getenv("EMBEDDINGS_MODEL", "default"),
+            timeout=float(os.getenv("EMBEDDINGS_TIMEOUT", "10")),
+            enabled=enabled,
+        )
+
+
+@dataclass
 class PathConfig:
     """Path configuration."""
     base: Path = field(default_factory=lambda: Path(os.getenv("AGENT_BASE_PATH", "/var/www/agent")))
@@ -74,6 +100,7 @@ class Config:
     api: APIConfig = field(default_factory=APIConfig)
     thresholds: ThresholdConfig = field(default_factory=ThresholdConfig)
     paths: PathConfig = field(default_factory=PathConfig)
+    embeddings: EmbeddingsConfig = field(default_factory=EmbeddingsConfig)
     log_level: str = "INFO"
 
     @classmethod
@@ -91,6 +118,7 @@ class Config:
                 feedback_confidence=float(os.getenv("FEEDBACK_CONFIDENCE_THRESHOLD", "0.8")),
                 improvement_confidence=float(os.getenv("IMPROVEMENT_CONFIDENCE_THRESHOLD", "0.6")),
             ),
+            embeddings=EmbeddingsConfig.from_env(),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
         )
 

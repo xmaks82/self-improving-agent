@@ -1,4 +1,10 @@
-"""Memory retriever for semantic search."""
+"""Memory retriever: hybrid (vector + keyword) semantic search.
+
+Combines embedding-based vector search with keyword matching, fused via
+Reciprocal Rank Fusion (RRF). Vector search is optional and best-effort — if no
+embeddings backend is configured/reachable, retrieval falls back to pure keyword
+ranking, so the agent works out of the box without an embeddings server.
+"""
 
 import re
 from typing import Optional
@@ -6,18 +12,22 @@ from collections import Counter
 
 from .types import Memory, MemoryType, MemoryQuery
 from .store import MemoryStore
+from .embeddings import EmbeddingsClient, cosine_similarity
+
+RRF_K = 60
 
 
 class MemoryRetriever:
     """
     Retrieves relevant memories based on context.
 
-    Uses keyword matching and relevance scoring.
-    Can be extended with embedding-based search.
+    Hybrid: vector similarity (if an embeddings backend is available) + keyword
+    matching, fused with RRF. Graceful fallback to keyword-only.
     """
 
-    def __init__(self, store: MemoryStore):
+    def __init__(self, store: MemoryStore, embeddings: Optional[EmbeddingsClient] = None):
         self.store = store
+        self.embeddings = embeddings or EmbeddingsClient()
 
     async def retrieve(
         self,
@@ -29,61 +39,95 @@ class MemoryRetriever:
         """
         Retrieve memories relevant to the given context.
 
-        Args:
-            context: Current context (user message, task, etc.)
-            limit: Maximum memories to return
-            memory_types: Filter by memory types
-            min_importance: Minimum importance threshold
-
-        Returns:
-            List of relevant memories, sorted by relevance
+        Runs keyword and (when available) vector ranking, fuses them via RRF.
+        Falls back to keyword-only, then to recent memories.
         """
-        # Extract keywords from context
-        keywords = self._extract_keywords(context)
+        kw_ranked = await self._keyword_candidates(
+            context, limit, memory_types, min_importance
+        )
+        vec_ranked = await self._vector_candidates(
+            context, limit, memory_types, min_importance
+        )
 
-        if not keywords:
-            # Fallback to recent memories
+        if not vec_ranked:
+            # No embeddings backend (or empty) → keyword-only path.
+            if kw_ranked:
+                return kw_ranked[:limit]
             return await self.store.get_recent(limit=limit)
 
-        # Get candidate memories
-        candidates = []
+        fused = self._rrf([vec_ranked, kw_ranked])
+        return fused[:limit]
 
-        # Search by each keyword
-        for keyword in keywords[:5]:  # Limit keywords to avoid too many queries
-            results = await self.store.search_by_content(
-                keyword,
-                limit=limit * 2,
+    async def _keyword_candidates(
+        self,
+        context: str,
+        limit: int,
+        memory_types: Optional[list[MemoryType]],
+        min_importance: float,
+    ) -> list[Memory]:
+        """Keyword-matched, relevance-scored candidates (original logic)."""
+        keywords = self._extract_keywords(context)
+        if not keywords:
+            return []
+
+        candidates: list[Memory] = []
+        for keyword in keywords[:5]:
+            candidates.extend(
+                await self.store.search_by_content(keyword, limit=limit * 2)
             )
-            candidates.extend(results)
 
-        # Remove duplicates (by ID)
-        seen = set()
-        unique = []
+        seen, unique = set(), []
         for mem in candidates:
             if mem.id not in seen:
                 seen.add(mem.id)
                 unique.append(mem)
         candidates = unique
 
-        # Filter by type
         if memory_types:
             candidates = [m for m in candidates if m.type in memory_types]
-
-        # Filter by importance
         if min_importance > 0:
             candidates = [m for m in candidates if m.importance >= min_importance]
 
-        # Score and rank
-        scored = []
-        for memory in candidates:
-            score = self._calculate_relevance(memory, context, keywords)
-            scored.append((score, memory))
-
-        # Sort by score descending
+        scored = [
+            (self._calculate_relevance(m, context, keywords), m) for m in candidates
+        ]
         scored.sort(key=lambda x: x[0], reverse=True)
+        return [m for _, m in scored]
 
-        # Return top results
-        return [m for _, m in scored[:limit]]
+    async def _vector_candidates(
+        self,
+        context: str,
+        limit: int,
+        memory_types: Optional[list[MemoryType]],
+        min_importance: float,
+    ) -> list[Memory]:
+        """Embedding cosine-ranked candidates. Empty if no embeddings backend."""
+        if not self.embeddings.available:
+            return []
+        qvec = await self.embeddings.embed(context)
+        if not qvec:
+            return []
+        pool = await self.store.get_embedded(memory_types=memory_types)
+        if min_importance > 0:
+            pool = [m for m in pool if m.importance >= min_importance]
+        scored = [
+            (cosine_similarity(qvec, m.embedding), m)
+            for m in pool
+            if m.embedding
+        ]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [m for _, m in scored[: limit * 4]]
+
+    @staticmethod
+    def _rrf(ranked_lists: list[list[Memory]], k: int = RRF_K) -> list[Memory]:
+        """Reciprocal Rank Fusion over several ranked Memory lists (by id)."""
+        scores: dict[str, float] = {}
+        objs: dict[str, Memory] = {}
+        for lst in ranked_lists:
+            for rank, mem in enumerate(lst, 1):
+                scores[mem.id] = scores.get(mem.id, 0.0) + 1.0 / (k + rank)
+                objs[mem.id] = mem
+        return [objs[i] for i in sorted(scores, key=lambda x: scores[x], reverse=True)]
 
     async def retrieve_for_conversation(
         self,
@@ -147,8 +191,9 @@ class MemoryRetriever:
             "them", "their", "what", "which", "who", "whom",
         }
 
-        # Tokenize and filter
-        words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
+        # Tokenize and filter. [^\W\d_] = any-script letters (Latin + Cyrillic + …),
+        # excluding digits/underscore — the old [a-zA-Z] regex dropped all Russian.
+        words = re.findall(r'[^\W\d_]{3,}', text.lower(), re.UNICODE)
         keywords = [w for w in words if w not in stopwords]
 
         # Count frequency
