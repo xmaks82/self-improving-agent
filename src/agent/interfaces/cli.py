@@ -62,6 +62,19 @@ class AgentCLI:
         if self.runtime_config:
             await self.runtime_config.load()
 
+        # Connect configured MCP servers (e.g. claude-memory) and bridge their
+        # tools into the agentic loop. Best-effort: never block startup.
+        try:
+            await self.mcp_manager.initialize()
+            results = await self.mcp_manager.connect_all()
+            connected = [n for n, ok in results.items() if ok]
+            registry = getattr(self.main_agent, "_tool_registry", None)
+            if connected and registry is not None:
+                added = registry.register_mcp_tools(self.mcp_manager)
+                console.print(f"[dim]MCP: {len(connected)} server(s) connected, +{added} tool(s)[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]MCP setup skipped: {e}[/yellow]")
+
         console.print(Panel(
             "[bold cyan]Self-Improving AI Agent[/bold cyan]\n"
             "Type your message or /help for commands\n"
@@ -96,6 +109,10 @@ class AgentCLI:
         finally:
             # Auto-save session on exit
             await self.main_agent.save_session()
+            try:
+                await self.mcp_manager.shutdown()
+            except Exception:
+                pass
 
         console.print("[green]Goodbye![/green]")
 

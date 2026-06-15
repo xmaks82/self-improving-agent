@@ -33,6 +33,25 @@ OPTIONAL_TOOLS = {
 }
 
 
+class _MCPToolWrapper(BaseTool):
+    """Wraps a tool exposed by an MCP server as a local BaseTool."""
+
+    def __init__(self, definition, executor):
+        self.name = definition.name
+        self.description = definition.description or ""
+        self.parameters = definition.input_schema or {"type": "object", "properties": {}}
+        self._executor = executor  # async (name, kwargs) -> {"success", "output"/"error"}
+
+    async def execute(self, **kwargs) -> ToolResult:
+        try:
+            res = await self._executor(self.name, kwargs)
+        except Exception as e:
+            return ToolResult.fail(f"MCP tool '{self.name}' error: {e}")
+        if res.get("success"):
+            return ToolResult.ok(res.get("output", ""))
+        return ToolResult.fail(res.get("error", "MCP tool failed"))
+
+
 class ToolRegistry:
     """
     Registry of available tools.
@@ -192,6 +211,22 @@ class ToolRegistry:
             return ToolResult.fail(error)
 
         return await tool.execute(**kwargs)
+
+    def register_mcp_tools(self, mcp_manager, auto_approve: bool = True) -> int:
+        """Bridge MCP-server tools into this registry so the agentic loop can call
+        them (registry.get_anthropic_tools / registry.execute). Each MCP tool is
+        wrapped as a BaseTool that proxies to mcp_manager.execute_tool.
+
+        auto_approve: MCP servers are explicitly configured/trusted → skip the
+        CONFIRM gate by default (override per-tool via permission_manager)."""
+        from .permissions import PermissionLevel
+        count = 0
+        for d in mcp_manager.tool_adapter.get_tool_definitions():
+            self.register(_MCPToolWrapper(d, mcp_manager.execute_tool))
+            if auto_approve:
+                self.permission_manager.set_permission(d.name, PermissionLevel.AUTO_APPROVE)
+            count += 1
+        return count
 
     def get_anthropic_tools(self) -> list[dict]:
         """Get all tools in Anthropic format."""
