@@ -218,6 +218,11 @@ class AnthropicClient(BaseLLMClient):
                 model=self.model,
                 message=str(e),
             ) from e
+        except Exception as e:
+            # OAuth blocked/expired → transparently fall back to API key and retry.
+            if self._should_fallback(e):
+                return self.chat_with_tools(messages, tools, system, max_tokens)
+            raise
 
         # Extract text and tool calls
         content = ""
