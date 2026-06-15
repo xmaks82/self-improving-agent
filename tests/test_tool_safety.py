@@ -142,3 +142,17 @@ def test_read_truncates_large_file(tmp_path):
     f.write_text("x" * 2_100_000, encoding="utf-8")
     r = asyncio.run(ReadFileTool(base_path=tmp_path).execute(path="huge.txt"))
     assert r.success and r.metadata.get("truncated") is True
+
+
+# ---------- shell guards run even outside sandbox (re-audit P1) ----------
+
+def test_shell_guards_active_without_sandbox(tmp_path):
+    from agent.tools.shell import RunCommandTool
+    t = RunCommandTool(working_dir=tmp_path, sandbox_mode=False)
+    ok = lambda c: t._is_command_allowed(c)[0]
+    # dangerous + redirect + subshell still blocked in trusted mode
+    assert ok("git status; rm -rf x") is False   # rm is always-denied
+    assert ok("cat f > out") is False            # redirection blocked
+    assert ok("echo $(rm x)") is False           # subshell blocked
+    # but allow-list no longer restricts in non-sandbox
+    assert ok("some_custom_tool --flag") is True

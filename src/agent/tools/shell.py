@@ -125,12 +125,15 @@ class RunCommandTool(BaseTool):
         """
         Check if command is allowed.
 
+        Security that runs ALWAYS (even outside sandbox): redirection/subshell are
+        blocked and EVERY sub-command head is checked against DANGEROUS_COMMANDS,
+        so chaining can't smuggle a denied command behind an allowed head.
+        The allow-LIST restriction applies only in sandbox_mode (trusted mode
+        merely widens what's permitted — it does not disable the guards).
+
         Returns:
             (allowed, reason)
         """
-        if not self.sandbox_mode:
-            return True, ""
-
         try:
             segments = self._split_segments(command)
         except ValueError as e:
@@ -139,12 +142,11 @@ class RunCommandTool(BaseTool):
         if not segments:
             return False, "Empty command"
 
-        # Validate EVERY sub-command head (chaining can't smuggle a denied cmd).
         for seg in segments:
             base_cmd = Path(seg[0]).name
             if base_cmd in self.DANGEROUS_COMMANDS:
                 return False, f"Command not allowed: {base_cmd}"
-            if base_cmd not in self.allowed_commands:
+            if self.sandbox_mode and base_cmd not in self.allowed_commands:
                 return False, f"Command not in allowed list: {base_cmd}"
 
         return True, ""
@@ -203,6 +205,10 @@ class RunCommandTool(BaseTool):
                 )
             except asyncio.TimeoutError:
                 process.kill()
+                try:
+                    await process.wait()  # reap to avoid a zombie / leaked pipes
+                except Exception:
+                    pass
                 return ToolResult.fail(
                     f"Command timed out after {cmd_timeout}s",
                     output="",

@@ -278,11 +278,12 @@ class MainAgent(BaseAgent):
                     hit_cap = False
                     break
 
-                # Loop guard: identical tool-call set repeated → abort.
+                # Loop guard: the SAME tool-call set two steps in a row → abort
+                # before re-executing (protects tools with side effects).
                 sig = tuple((tc.name, repr(tc.input)) for tc in resp.tool_calls)
                 repeat = repeat + 1 if sig == last_sig else 0
                 last_sig = sig
-                if repeat >= 2:
+                if repeat >= 1:
                     msg = "\n[aborting: repeated identical tool calls]\n"
                     full_response += msg
                     yield msg

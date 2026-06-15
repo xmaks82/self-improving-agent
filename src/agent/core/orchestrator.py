@@ -212,32 +212,3 @@ class ImprovementOrchestrator:
     def _elapsed_ms(self, start_time: float) -> int:
         """Calculate elapsed time in milliseconds."""
         return int((time.time() - start_time) * 1000)
-
-
-class ManualImprovementOrchestrator(ImprovementOrchestrator):
-    """
-    Orchestrator variant for manual/explicit feedback.
-
-    Skips some checks and always attempts improvement.
-    """
-
-    async def run(
-        self,
-        feedback: Feedback,
-        recent_logs: list[dict],
-        target_agent: str = "main_agent",
-    ) -> ImprovementResult:
-        """
-        Run improvement without confidence threshold check.
-        """
-        # Override confidence to ensure improvement runs
-        original_threshold = config.thresholds.improvement_confidence
-        config.thresholds.improvement_confidence = 0.0
-
-        try:
-            result = await super().run(feedback, recent_logs, target_agent)
-        finally:
-            # Restore threshold
-            config.thresholds.improvement_confidence = original_threshold
-
-        return result

@@ -1,6 +1,7 @@
 """Filesystem tools with read-before-edit enforcement."""
 
 import os
+import uuid
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 import aiofiles
@@ -11,8 +12,9 @@ from .base import BaseTool, ToolResult
 
 async def _atomic_write(resolved: Path, content: str, encoding: str) -> None:
     """Write via temp file + os.replace so an interrupted write never leaves
-    a truncated/corrupt target (atomic on the same filesystem)."""
-    tmp = resolved.with_name(resolved.name + ".tmp-agent")
+    a truncated/corrupt target (atomic on the same filesystem). Unique temp
+    name avoids collisions between concurrent writers."""
+    tmp = resolved.with_name(f"{resolved.name}.tmp-{uuid.uuid4().hex[:8]}")
     try:
         async with aiofiles.open(tmp, "w", encoding=encoding) as f:
             await f.write(content)

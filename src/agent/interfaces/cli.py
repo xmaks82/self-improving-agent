@@ -522,13 +522,14 @@ class AgentCLI:
         # Import here to avoid circular imports
         from ..core.feedback import Feedback, FeedbackDetector
 
-        # Use FeedbackDetector's pattern matching to classify
+        # /feedback is a CORRECTION channel: default to negative unless the text
+        # is clearly positive (avoids misclassifying long complaints as praise).
         detector = FeedbackDetector()
         detected = detector.detect(args)
-        is_negative = detected.type == "negative" if detected else False
+        is_positive = detected is not None and detected.type == "positive"
 
         feedback = Feedback(
-            type="negative" if is_negative else "positive",
+            type="positive" if is_positive else "negative",
             category="explicit",
             raw_text=args,
             confidence=1.0,

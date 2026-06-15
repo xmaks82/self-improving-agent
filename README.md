@@ -47,7 +47,7 @@ loop; streaming surfaces output per loop-step, not per token. See CHANGELOG.
 - **AgentOrchestrator** — coordinates sub-agents with auto-selection
 - **SessionMemory, ContextCompactor, FeedbackDetector** — LLM-powered services
 
-### 6 Free LLM Providers
+### LLM Providers
 | Provider | Speed | Models | Key |
 |----------|-------|--------|-----|
 | **Groq** | Fast | Llama 4 Scout, Llama 3.3 70B, Qwen3 32B, GPT-OSS 120B/20B | [console.groq.com](https://console.groq.com/) |
@@ -55,6 +55,7 @@ loop; streaming surfaces output per loop-step, not per token. See CHANGELOG.
 | **Cerebras** | Ultra-fast | Llama 3.1 8B, Qwen3 235B, GPT-OSS 120B, GLM 4.7 | [cloud.cerebras.ai](https://cloud.cerebras.ai/) |
 | **OpenRouter** | Free tier | Qwen3-Next, Qwen3-Coder, Kimi K2.6, GLM 4.5 Air | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | **Zhipu** | No limits | GLM 4.5/4.7 Flash (free), GLM 5.1/5/4.7 | [open.bigmodel.cn](https://open.bigmodel.cn/) |
+| **FCM** | Local router | Free-model router (health-probe + auto-failover) via `FCM_BASE_URL` | local, no key |
 | **Anthropic** | OAuth/API | Claude Opus 4.8/4.7/4.6, Sonnet 4.6, Haiku 4.5 | [console.anthropic.com](https://console.anthropic.com/) |
 
 **Claude subscription auth**: Use your Pro/Max subscription via OAuth — `/auth paste` with setup-token. Auto-fallback to API key if blocked.
