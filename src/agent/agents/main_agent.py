@@ -377,6 +377,20 @@ class MainAgent(BaseAgent):
                 if report:
                     yield f"\n\n---\n{report}\n"
 
+        # Closed-loop quality control: attribute CONFIDENT feedback to the prompt
+        # version that produced this response, then auto-rollback if the current
+        # version is underperforming. (Degradation protection — was missing.)
+        if (feedback and getattr(feedback, "confidence", 0) >= 0.7
+                and feedback.type in ("positive", "negative")):
+            try:
+                self.prompt_manager.record_feedback("main_agent", feedback.type == "positive")
+                rb = self.prompt_manager.maybe_auto_rollback("main_agent")
+                if rb:
+                    yield (f"\n\n---\n_Auto-rollback to prompt v{rb['rolled_back_to']} "
+                           f"(new version underperformed: {rb['negative_rate']:.0%} negative)._\n")
+            except Exception:
+                pass
+
         # Trigger improvement if feedback detected
         if feedback and feedback.should_trigger_improvement:
             yield "\n\n---\n_Feedback detected. Starting improvement analysis..._\n"

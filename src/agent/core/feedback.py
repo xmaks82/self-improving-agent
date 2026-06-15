@@ -47,27 +47,38 @@ class FeedbackDetector:
     2. LLM classification (accurate, expensive) - fallback for unclear cases
     """
 
-    # Negative feedback patterns (Russian and English)
+    # STRONG negative feedback — clearly about the assistant's RESPONSE quality.
     NEGATIVE_PATTERNS = [
         # Russian
         r"слишком (длинн|коротк|сложн|прост|многословн)",
         r"не (понял|понятно|то|так|верно|правильно)",
         r"(плохо|ужасно|отвратительно|некачественно)",
-        r"(неправильн|ошиб|некорректн|неверн)",
         r"можно (короче|проще|понятнее|лучше|яснее)",
         r"это (бред|чушь|ерунда|неправда)",
-        r"не (работает|помогло|подходит)",
-        r"(переделай|исправь|измени)",
-        r"(запутал|непонятн|сложн)",
+        r"твой ответ",
+        r"(запутал|непонятно объясн)",
         # English
         r"too (long|short|complex|simple|verbose)",
-        r"(wrong|incorrect|inaccurate|false)",
-        r"(bad|terrible|awful|poor)",
+        r"(bad|terrible|awful|poor) (answer|response|explanation)",
         r"(confusing|unclear|hard to understand)",
-        r"(fix|redo|change|improve) (this|it|that)",
-        r"doesn'?t (work|help|make sense)",
-        r"not (right|correct|what I (asked|wanted|meant))",
+        r"your (answer|response|reply)",
+        r"not (what I (asked|wanted|meant))",
     ]
+
+    # AMBIGUOUS imperatives — could be feedback about the response OR a work task
+    # ("исправь баг в X"). Only treated as feedback when the message is NOT a task.
+    WEAK_IMPERATIVE_PATTERNS = [
+        r"\b(переделай|исправь|измени|перепиши)\b",
+        r"\b(fix|redo|change|improve|rewrite) (this|it|that)\b",
+    ]
+
+    # Signals that an imperative is a TASK (about code/files), not self-feedback.
+    TASK_SIGNAL_PATTERN = (
+        r"```|\b[\w./-]+\.(py|js|ts|tsx|jsx|md|json|ya?ml|go|rs|java|cpp|cc|c|h|html|css|sql|sh)\b"
+        r"|[/\\]|\b(баг|bug|функци|метод|класс|тест|файл|строк|переменн|импорт|endpoint|"
+        r"api|команд|function|method|class|test|file|line|variable|import|module|модул|"
+        r"таблиц|table|запрос|query|скрипт|script|конфиг|config)\b"
+    )
 
     # Positive feedback patterns
     POSITIVE_PATTERNS = [
@@ -130,6 +141,15 @@ class FeedbackDetector:
         self._positive_patterns = [
             re.compile(p, re.IGNORECASE) for p in self.POSITIVE_PATTERNS
         ]
+        self._weak_imperative_patterns = [
+            re.compile(p, re.IGNORECASE) for p in self.WEAK_IMPERATIVE_PATTERNS
+        ]
+        self._task_signal = re.compile(self.TASK_SIGNAL_PATTERN, re.IGNORECASE)
+
+    def _looks_like_task(self, message: str) -> bool:
+        """True if the message references code/files → it's a work task, not
+        feedback about the assistant's own response."""
+        return bool(self._task_signal.search(message))
 
     def detect(self, message: str) -> Optional[Feedback]:
         """
@@ -147,7 +167,7 @@ class FeedbackDetector:
         negative_match = self._match_patterns(message, self._negative_patterns)
         positive_match = self._match_patterns(message, self._positive_patterns)
 
-        # Negative feedback detected
+        # Strong negative — clearly about the response
         if negative_match and not positive_match:
             category = self._detect_category(message_lower)
             return Feedback(
@@ -168,8 +188,25 @@ class FeedbackDetector:
                 triggered_improvement=False,
             )
 
-        # Both or neither - could be implicit feedback
-        # Use LLM if message is short (likely feedback) and client available
+        # Ambiguous imperative ("исправь/fix this"): a WORK TASK if it references
+        # code/files → NOT self-feedback (prevents prompt drift from normal commands).
+        if (not positive_match
+                and self._match_patterns(message, self._weak_imperative_patterns)):
+            if self._looks_like_task(message):
+                return None  # task for the agent, not feedback about it
+            # Genuinely ambiguous & short → let the LLM disambiguate if possible.
+            if self.client and len(message.split()) < 15:
+                return self._llm_detect(message)
+            # No LLM: record as low-confidence negative (below trigger threshold).
+            return Feedback(
+                type="negative",
+                category=self._detect_category(message_lower),
+                raw_text=message,
+                confidence=0.5,
+                triggered_improvement=False,
+            )
+
+        # Neither - could be implicit feedback; use LLM for short messages.
         if len(message.split()) < 15 and self.client:
             return self._llm_detect(message)
 

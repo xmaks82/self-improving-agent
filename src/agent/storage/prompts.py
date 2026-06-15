@@ -144,8 +144,13 @@ class PromptManager:
         if current_link.is_symlink() or current_link.exists():
             current_link.unlink()
 
-        # Create new symlink
-        current_link.symlink_to(target_filename)
+        # Prefer a symlink; fall back to a copy where symlinks aren't permitted
+        # (Windows without Developer Mode / privilege).
+        try:
+            current_link.symlink_to(target_filename)
+        except (OSError, NotImplementedError):
+            import shutil
+            shutil.copyfile(agent_path / target_filename, current_link)
 
     def rollback(self, agent_name: str, target_version: int, reason: str) -> bool:
         """
@@ -172,6 +177,64 @@ class PromptManager:
         logger.info("Rolled back %s to v%d: %s", agent_name, target_version, reason)
 
         return True
+
+    # Closed-loop quality control: a freshly generated version must prove itself.
+    MIN_FEEDBACK_SAMPLES = 4   # don't judge a version on too little data
+    MAX_NEG_RATE = 0.6         # ≥60% negative over the window → revert
+
+    def _current_version_file(self, agent_name: str) -> Optional[Path]:
+        """Resolve the real version file behind current.yaml (symlink OR copy)."""
+        cur = self.base_path / agent_name / "current.yaml"
+        if not cur.exists():
+            return None
+        if cur.is_symlink():
+            return cur.resolve()
+        ver = self.current_version(agent_name)
+        files = list((self.base_path / agent_name).glob(f"v{ver:03d}_*.yaml"))
+        return files[0] if files else cur
+
+    def record_feedback(self, agent_name: str, is_positive: bool) -> None:
+        """Attribute a confident feedback signal to the CURRENT prompt version
+        (the one that produced the response). Powers auto-rollback."""
+        fpath = self._current_version_file(agent_name)
+        if not fpath or not fpath.exists():
+            return
+        try:
+            with open(fpath, encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            m = data.setdefault("metrics", {})
+            m["pos_count"] = int(m.get("pos_count", 0)) + (1 if is_positive else 0)
+            m["neg_count"] = int(m.get("neg_count", 0)) + (0 if is_positive else 1)
+            total = m["pos_count"] + m["neg_count"]
+            m["sessions_count"] = total
+            m["positive_feedback_rate"] = (m["pos_count"] / total) if total else None
+            m["negative_feedback_rate"] = (m["neg_count"] / total) if total else None
+            with open(fpath, "w", encoding="utf-8") as f:
+                yaml.dump(data, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        except Exception as e:
+            logger.warning("record_feedback failed for %s: %s", agent_name, e)
+
+    def maybe_auto_rollback(self, agent_name: str) -> Optional[dict]:
+        """Revert to the parent version if the current one underperforms
+        (≥MAX_NEG_RATE negative over ≥MIN_FEEDBACK_SAMPLES). Returns rollback
+        info or None. This is the missing 'degradation protection'."""
+        try:
+            data = self.get_version_data(agent_name)
+        except Exception:
+            return None
+        parent = data.get("parent_version")
+        if not parent:
+            return None
+        m = data.get("metrics", {})
+        total = int(m.get("pos_count", 0)) + int(m.get("neg_count", 0))
+        if total < self.MIN_FEEDBACK_SAMPLES:
+            return None
+        neg_rate = int(m.get("neg_count", 0)) / total
+        if neg_rate >= self.MAX_NEG_RATE:
+            reason = f"auto-rollback: negative rate {neg_rate:.0%} over {total} samples"
+            if self.rollback(agent_name, parent, reason):
+                return {"rolled_back_to": parent, "negative_rate": neg_rate, "samples": total}
+        return None
 
     def get_history(self, agent_name: str, limit: int = 10) -> list[dict]:
         """Get version history for an agent."""
