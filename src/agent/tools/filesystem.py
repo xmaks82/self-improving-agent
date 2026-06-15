@@ -45,9 +45,20 @@ class ReadFileTool(BaseTool):
                 "description": "File encoding (default: utf-8)",
                 "default": "utf-8",
             },
+            "offset": {
+                "type": "integer",
+                "description": "1-based line number to start reading from",
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Maximum number of lines to read",
+            },
         },
         "required": ["path"],
     }
+
+    # Guard: never slurp an unbounded file fully into memory.
+    MAX_READ_BYTES = 2_000_000
 
     def __init__(self, base_path: Optional[Path] = None, file_state: Optional["FileReadStateTracker"] = None):
         self.base_path = base_path
@@ -64,8 +75,10 @@ class ReadFileTool(BaseTool):
             return resolved
         return p.resolve()
 
-    async def execute(self, path: str, encoding: str = "utf-8", **kwargs) -> ToolResult:
-        """Read file contents."""
+    async def execute(self, path: str, encoding: str = "utf-8",
+                      offset: Optional[int] = None, limit: Optional[int] = None,
+                      **kwargs) -> ToolResult:
+        """Read file contents (optionally a line range; large files are capped)."""
         try:
             resolved = self._resolve_path(path)
 
@@ -75,18 +88,37 @@ class ReadFileTool(BaseTool):
             if not resolved.is_file():
                 return ToolResult.fail(f"Not a file: {path}")
 
-            async with aiofiles.open(resolved, "r", encoding=encoding) as f:
-                content = await f.read()
+            size = resolved.stat().st_size
+            truncated = False
 
-            # Track read for read-before-edit enforcement
+            if offset is not None or limit is not None:
+                async with aiofiles.open(resolved, "r", encoding=encoding) as f:
+                    all_lines = (await f.read()).splitlines(keepends=True)
+                start = (offset - 1) if offset and offset > 0 else 0
+                end = (start + limit) if limit else len(all_lines)
+                content = "".join(all_lines[start:end])
+            elif size > self.MAX_READ_BYTES:
+                async with aiofiles.open(resolved, "r", encoding=encoding) as f:
+                    content = await f.read(self.MAX_READ_BYTES)
+                truncated = True
+            else:
+                async with aiofiles.open(resolved, "r", encoding=encoding) as f:
+                    content = await f.read()
+
+            # Track read for read-before-edit enforcement (note partial reads).
             if self.file_state:
-                self.file_state.record_read(str(resolved))
+                self.file_state.record_read(str(resolved), offset=offset, limit=limit)
+
+            if truncated:
+                content += (f"\n...[truncated at {self.MAX_READ_BYTES} bytes of {size}; "
+                            f"use offset/limit to read more]")
 
             return ToolResult.ok(
                 content,
                 path=str(resolved),
                 size=len(content),
                 lines=content.count("\n") + 1,
+                truncated=truncated,
             )
 
         except PermissionError as e:

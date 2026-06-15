@@ -1,11 +1,39 @@
 """Web fetch tool for loading and parsing web pages."""
 
+import asyncio
+import ipaddress
 import re
+import socket
 from urllib.parse import urljoin, urlparse
 
 import httpx
 
 from .base import BaseTool, ToolResult
+
+
+async def _ssrf_check(url: str) -> tuple[bool, str]:
+    """Block requests to non-public addresses (loopback/private/link-local/
+    reserved), including the cloud metadata endpoint 169.254.169.254. Resolves
+    the host and inspects every returned IP. Returns (safe, reason)."""
+    host = urlparse(url).hostname
+    if not host:
+        return False, "no host in URL"
+    if host.lower() == "localhost":
+        return False, "localhost is blocked"
+    try:
+        infos = await asyncio.to_thread(socket.getaddrinfo, host, None)
+    except Exception as e:
+        return False, f"DNS resolution failed: {e}"
+    for info in infos:
+        ip = info[4][0]
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            continue
+        if (addr.is_private or addr.is_loopback or addr.is_link_local
+                or addr.is_reserved or addr.is_multicast or addr.is_unspecified):
+            return False, f"{host} resolves to non-public IP {ip}"
+    return True, ""
 
 
 class WebFetchTool(BaseTool):
@@ -56,6 +84,11 @@ class WebFetchTool(BaseTool):
         # Validate URL
         if not self._is_valid_url(url):
             return ToolResult.fail(f"Invalid URL: {url}")
+
+        # SSRF guard — refuse internal/metadata targets.
+        safe, reason = await _ssrf_check(url)
+        if not safe:
+            return ToolResult.fail(f"Blocked by SSRF guard: {reason}")
 
         try:
             async with httpx.AsyncClient(

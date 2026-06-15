@@ -113,3 +113,32 @@ def test_undo_restores_created_file(tmp_path):
 
     asyncio.run(um.undo())  # undo of file_create = delete
     assert not (tmp_path / "n.txt").exists()
+
+
+# ---------- SSRF guard ----------
+
+def test_ssrf_blocks_internal_targets(tmp_path):
+    from agent.tools.web_fetch import WebFetchTool
+    t = WebFetchTool()
+    for u in ["http://127.0.0.1/", "http://localhost/admin",
+              "http://169.254.169.254/latest/meta-data/"]:
+        r = asyncio.run(t.execute(url=u))
+        assert r.success is False and "SSRF" in (r.error or ""), u
+
+
+# ---------- read offset/limit + truncation ----------
+
+def test_read_offset_limit(tmp_path):
+    from agent.tools.filesystem import ReadFileTool
+    f = tmp_path / "big.txt"
+    f.write_text("".join(f"line{i}\n" for i in range(1, 101)), encoding="utf-8")
+    r = asyncio.run(ReadFileTool(base_path=tmp_path).execute(path="big.txt", offset=10, limit=3))
+    assert r.success and r.output == "line10\nline11\nline12\n"
+
+
+def test_read_truncates_large_file(tmp_path):
+    from agent.tools.filesystem import ReadFileTool
+    f = tmp_path / "huge.txt"
+    f.write_text("x" * 2_100_000, encoding="utf-8")
+    r = asyncio.run(ReadFileTool(base_path=tmp_path).execute(path="huge.txt"))
+    assert r.success and r.metadata.get("truncated") is True
