@@ -85,3 +85,31 @@ def test_write_blocks_external_change(tmp_path):
     r = asyncio.run(WriteFileTool(base_path=tmp_path, file_state=fs).execute(
         path="b.txt", content="my change"))
     assert r.success is False and "changed on disk" in (r.error or "")
+
+
+# ---------- confirmation + undo ----------
+
+def test_confirm_callback_blocks_write(tmp_path):
+    from agent.tools.registry import ToolRegistry
+
+    async def deny(name, kwargs):
+        return False
+
+    reg = ToolRegistry(working_dir=tmp_path, sandbox_mode=True, confirm_callback=deny)
+    r = asyncio.run(reg.execute("write_file", path="x.txt", content="hi"))
+    assert r.success is False and "Rejected" in (r.error or "")
+    assert not (tmp_path / "x.txt").exists()
+
+
+def test_undo_restores_created_file(tmp_path):
+    from agent.tools.registry import ToolRegistry
+    from agent.approval.undo import UndoManager
+
+    um = UndoManager(history_path=tmp_path / "undo" / "h.json")
+    reg = ToolRegistry(working_dir=tmp_path, sandbox_mode=True, undo_manager=um)
+
+    r = asyncio.run(reg.execute("write_file", path="n.txt", content="created"))
+    assert r.success and (tmp_path / "n.txt").read_text(encoding="utf-8") == "created"
+
+    asyncio.run(um.undo())  # undo of file_create = delete
+    assert not (tmp_path / "n.txt").exists()

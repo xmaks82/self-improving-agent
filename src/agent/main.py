@@ -100,8 +100,42 @@ def cli_main():
     # Tool registry — powers the agentic loop (filesystem/shell/git/search/web).
     # sandbox_mode=True confines file ops to the launch directory (safe default).
     from pathlib import Path
+    import sys as _sys
     from .tools.registry import ToolRegistry
-    tool_registry = ToolRegistry(working_dir=Path.cwd(), sandbox_mode=True)
+    from .approval.undo import UndoManager
+    from .approval.confirmator import (
+        Confirmator, PendingAction, ActionType, ConfirmationResult,
+    )
+
+    undo_manager = UndoManager()  # records before/after of every file mutation
+
+    # Interactive terminal → confirm write/run/commit. Headless → bypass.
+    confirm_callback = None
+    if _sys.stdin.isatty():
+        _confirmator = Confirmator(interactive=True)
+        _ACTION = {
+            "write_file": ActionType.FILE_WRITE,
+            "edit_file": ActionType.FILE_WRITE,
+            "run_command": ActionType.COMMAND_EXECUTE,
+            "git_commit": ActionType.GIT_COMMIT,
+        }
+
+        async def confirm_callback(name, kwargs):  # noqa: F811
+            action = PendingAction(
+                action_type=_ACTION.get(name, ActionType.DESTRUCTIVE),
+                description=f"{name}: {kwargs.get('path') or kwargs.get('command') or ''}",
+                details=kwargs,
+                risk_level="medium",
+            )
+            res = await _confirmator.confirm(action)
+            return res.result == ConfirmationResult.APPROVED
+
+    tool_registry = ToolRegistry(
+        working_dir=Path.cwd(),
+        sandbox_mode=True,
+        confirm_callback=confirm_callback,
+        undo_manager=undo_manager,
+    )
 
     # Create main agent with full pipeline
     main_agent = MainAgent(

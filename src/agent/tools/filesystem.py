@@ -127,9 +127,10 @@ class WriteFileTool(BaseTool):
         "required": ["path", "content"],
     }
 
-    def __init__(self, base_path: Optional[Path] = None, file_state: Optional["FileReadStateTracker"] = None):
+    def __init__(self, base_path: Optional[Path] = None, file_state: Optional["FileReadStateTracker"] = None, undo_manager=None):
         self.base_path = base_path
         self.file_state = file_state
+        self.undo_manager = undo_manager
 
     def _resolve_path(self, path: str) -> Path:
         """Resolve path with sandboxing."""
@@ -170,7 +171,23 @@ class WriteFileTool(BaseTool):
             if create_dirs:
                 resolved.parent.mkdir(parents=True, exist_ok=True)
 
+            # Capture prior content for undo (None if new file).
+            before = None
+            if resolved.exists():
+                try:
+                    async with aiofiles.open(resolved, "r", encoding=encoding) as f:
+                        before = await f.read()
+                except Exception:
+                    before = None
+
             await _atomic_write(resolved, content, encoding)
+
+            # Record for rollback.
+            if self.undo_manager is not None:
+                try:
+                    await self.undo_manager.record_file_write(str(resolved), before, content)
+                except Exception:
+                    pass
 
             # Track write and refresh the read baseline (we now know current content).
             if self.file_state:
@@ -213,9 +230,10 @@ class EditFileTool(BaseTool):
         "required": ["path", "old_string", "new_string"],
     }
 
-    def __init__(self, base_path: Optional[Path] = None, file_state: Optional["FileReadStateTracker"] = None):
+    def __init__(self, base_path: Optional[Path] = None, file_state: Optional["FileReadStateTracker"] = None, undo_manager=None):
         self.base_path = base_path
         self.file_state = file_state
+        self.undo_manager = undo_manager
 
     def _resolve_path(self, path: str) -> Path:
         p = Path(path)
@@ -271,6 +289,12 @@ class EditFileTool(BaseTool):
                 new_content = content.replace(old_string, new_string, 1)
 
             await _atomic_write(resolved, new_content, encoding)
+
+            if self.undo_manager is not None:
+                try:
+                    await self.undo_manager.record_file_write(str(resolved), content, new_content)
+                except Exception:
+                    pass
 
             if self.file_state:
                 self.file_state.record_write(str(resolved))

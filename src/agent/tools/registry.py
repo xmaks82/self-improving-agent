@@ -49,11 +49,18 @@ class ToolRegistry:
         permission_manager: Optional[PermissionManager] = None,
         file_state: Optional[FileReadStateTracker] = None,
         load_all: bool = True,
+        confirm_callback=None,
+        undo_manager=None,
     ):
         self.working_dir = working_dir or Path.cwd()
         self.sandbox_mode = sandbox_mode
         self.permission_manager = permission_manager or PermissionManager()
         self.file_state = file_state or FileReadStateTracker()
+        # confirm_callback: async (tool_name, kwargs) -> bool. When set, CONFIRM-level
+        # tools require approval. None → pass-through (headless/auto).
+        self.confirm_callback = confirm_callback
+        # undo_manager: records before/after for every file mutation (enables rollback).
+        self.undo_manager = undo_manager
         self._tools: dict[str, BaseTool] = {}
         self._deferred: dict[str, tuple[str, str]] = {}
 
@@ -67,10 +74,10 @@ class ToolRegistry:
         """Register core tools (always available)."""
         base = self.working_dir if self.sandbox_mode else None
 
-        # Filesystem tools (with shared file state tracker)
+        # Filesystem tools (shared file state tracker + undo manager)
         self.register(ReadFileTool(base_path=base, file_state=self.file_state))
-        self.register(WriteFileTool(base_path=base, file_state=self.file_state))
-        self.register(EditFileTool(base_path=base, file_state=self.file_state))
+        self.register(WriteFileTool(base_path=base, file_state=self.file_state, undo_manager=self.undo_manager))
+        self.register(EditFileTool(base_path=base, file_state=self.file_state, undo_manager=self.undo_manager))
         self.register(ListDirectoryTool(base_path=base))
 
         # Shell tool
@@ -166,6 +173,18 @@ class ToolRegistry:
         allowed, reason = self.permission_manager.check_permission(name, **kwargs)
         if not allowed:
             return ToolResult.fail(f"Permission denied: {reason}")
+
+        # Confirmation for CONFIRM-level tools (write/run/commit) when a UI wired
+        # a callback. Without a callback we pass through (headless/auto mode).
+        from .permissions import PermissionLevel
+        if (self.confirm_callback is not None
+                and self.permission_manager.get_permission(name) == PermissionLevel.CONFIRM):
+            try:
+                approved = await self.confirm_callback(name, kwargs)
+            except Exception as e:
+                return ToolResult.fail(f"Confirmation failed: {e}")
+            if not approved:
+                return ToolResult.fail(f"Rejected by user: {name}")
 
         # Validate arguments
         error = tool.validate_args(**kwargs)
