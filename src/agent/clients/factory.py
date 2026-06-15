@@ -51,6 +51,9 @@ MODEL_PROVIDERS = {
     "qwen3.6-plus": "openrouter",   # alias → qwen3-next (старое имя)
     "openrouter-free": "openrouter",
 
+    # === FCM (local free-model router: health-probe + auto-failover) ===
+    "fcm": "fcm",
+
     # === SAMBANOVA (free, ultra-fast 580 t/s) ===
     "sambanova": "sambanova",
     "llama-4-maverick": "sambanova",
@@ -71,6 +74,8 @@ def get_provider(model: str) -> str:
         return MODEL_PROVIDERS[model]
 
     # Check prefix
+    if model.startswith("fcm"):
+        return "fcm"
     if model.startswith("claude"):
         return "anthropic"
     if model.startswith("kimi"):
@@ -166,6 +171,10 @@ def create_client(
             api_key=os.getenv("OPENROUTER_API_KEY"),
             model=model,
         )
+
+    elif provider == "fcm":
+        from .fcm_client import FCMClient
+        return FCMClient(model=model)
 
     else:
         raise ValueError(f"Unknown provider for model: {model}")

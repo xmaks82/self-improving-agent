@@ -31,6 +31,7 @@ class OpenRouterClient(BaseLLMClient):
     provider = "openrouter"
     supports_streaming = True
     supports_tools = True
+    BASE_URL = OPENROUTER_BASE_URL  # overridable by subclasses (e.g. FCMClient)
 
     # Curated models (free and paid)
     MODELS = {
@@ -86,7 +87,7 @@ class OpenRouterClient(BaseLLMClient):
         try:
             with httpx.Client(timeout=120) as client:
                 resp = client.post(
-                    f"{OPENROUTER_BASE_URL}/chat/completions",
+                    f"{self.BASE_URL}/chat/completions",
                     headers=self._headers(),
                     json=body,
                 )
@@ -141,7 +142,7 @@ class OpenRouterClient(BaseLLMClient):
         async with httpx.AsyncClient(timeout=120) as client:
             async with client.stream(
                 "POST",
-                f"{OPENROUTER_BASE_URL}/chat/completions",
+                f"{self.BASE_URL}/chat/completions",
                 headers=self._headers(),
                 json=body,
             ) as resp:
@@ -188,7 +189,7 @@ class OpenRouterClient(BaseLLMClient):
         try:
             with httpx.Client(timeout=120) as client:
                 resp = client.post(
-                    f"{OPENROUTER_BASE_URL}/chat/completions",
+                    f"{self.BASE_URL}/chat/completions",
                     headers=self._headers(),
                     json=body,
                 )
