@@ -120,6 +120,18 @@ class VersionerAgent:
 
     # Maximum prompt length in characters (roughly 4000 tokens)
     MAX_PROMPT_LENGTH = 16000
+    MIN_PROMPT_LENGTH = 50
+
+    # Meta-agents that drive self-improvement — the versioner must NEVER rewrite
+    # these (or itself), or it could poison its own machinery irreversibly.
+    PROTECTED_AGENTS = {"versioner", "analyzer"}
+
+    # Prompt-injection markers that should never appear in a generated prompt.
+    _INJECTION_MARKERS = (
+        "ignore previous", "ignore the above", "disregard all",
+        "disregard previous", "ignore all prior", "забудь предыдущ",
+        "игнорируй инструкц",
+    )
 
     def __init__(
         self,
@@ -278,18 +290,26 @@ Remember:
             prompt = input_data["prompt_content"]
             issues = []
 
-            # Check length
+            # Length bounds
             if len(prompt) > self.MAX_PROMPT_LENGTH:
                 issues.append(f"Prompt too long: {len(prompt)} chars (max: {self.MAX_PROMPT_LENGTH})")
+            if len(prompt.strip()) < self.MIN_PROMPT_LENGTH:
+                issues.append(f"Prompt too short: {len(prompt.strip())} chars (min: {self.MIN_PROMPT_LENGTH})")
 
-            # Check for common issues
             if not prompt.strip():
                 issues.append("Prompt is empty")
 
             if "{{" in prompt or "}}" in prompt:
                 issues.append("Prompt contains template syntax that may not be filled")
 
-            # Check structure
+            # Prompt-injection safety: a generated prompt must not contain
+            # instruction-override markers.
+            low = prompt.lower()
+            hit = [m for m in self._INJECTION_MARKERS if m in low]
+            if hit:
+                issues.append(f"Contains instruction-override markers: {hit}")
+
+            # Structure hint
             has_sections = "##" in prompt or "**" in prompt
             if len(prompt) > 500 and not has_sections:
                 issues.append("Long prompt without clear sections - consider adding headers")
@@ -302,6 +322,12 @@ Remember:
             }
 
         elif name == "create_prompt_version":
+            # Meta-protection: never let the versioner rewrite its own / the
+            # analyzer's prompt (self-poisoning of the improvement machinery).
+            agent = input_data.get("agent_name", target_agent)
+            if agent in self.PROTECTED_AGENTS:
+                return {"error": f"Refused: cannot rewrite protected meta-agent '{agent}'."}
+
             # Validate before saving
             validation = await self._execute_tool(
                 "validate_prompt",
@@ -327,6 +353,8 @@ Remember:
     ) -> PromptVersion:
         """Save the new prompt version."""
         agent_name = input_data["agent_name"]
+        if agent_name in self.PROTECTED_AGENTS:
+            raise ValueError(f"Refused to version protected meta-agent '{agent_name}'")
         new_prompt = input_data["new_prompt"]
         changes_data = input_data.get("changes", [])
         rationale = input_data.get("rationale", "")
