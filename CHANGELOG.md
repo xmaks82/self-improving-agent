@@ -33,6 +33,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **Sub-agents + verification run the same tool-loop** (shared `run_tool_loop`),
   no longer single-shot; sub-agent errors propagate instead of masquerading as
   successful output.
+- **Token streaming during tool-use** (`stream_with_tools`) for Anthropic and
+  OpenAI-compatible/FCM clients; the main loop streams text deltas and falls
+  back to non-streaming for providers without it.
 
 ### Fixed
 - OAuth→API-key fallback on the tool path; `check_api_keys` covers OpenRouter;

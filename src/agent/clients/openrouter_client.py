@@ -31,6 +31,7 @@ class OpenRouterClient(BaseLLMClient):
     provider = "openrouter"
     supports_streaming = True
     supports_tools = True
+    supports_stream_tools = True
     BASE_URL = OPENROUTER_BASE_URL  # overridable by subclasses (e.g. FCMClient)
 
     # Curated models (free and paid)
@@ -237,6 +238,92 @@ class OpenRouterClient(BaseLLMClient):
         )
         result._raw_response = data
         return result
+
+    async def stream_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        system: Optional[str] = None,
+        max_tokens: int = 4096,
+    ):
+        """Token-stream text deltas (OpenAI SSE), accumulate tool_calls, then
+        yield the final LLMToolResponse with a raw dict for format_tool_results."""
+        formatted = []
+        if system:
+            formatted.append({"role": "system", "content": system})
+        formatted.extend(messages)
+
+        body = {
+            "model": self.model,
+            "messages": formatted,
+            "max_tokens": max_tokens,
+            "tools": self._convert_tools_to_openai(tools),
+            "stream": True,
+        }
+
+        acc_content = ""
+        acc_tools: dict[int, dict] = {}
+        usage: dict = {}
+
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST", f"{self.BASE_URL}/chat/completions",
+                headers=self._headers(), json=body,
+            ) as resp:
+                if resp.status_code == 429:
+                    raise RateLimitError(provider=self.provider, model=self.model,
+                                         message="Rate limit exceeded")
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    payload = line[6:]
+                    if payload.strip() == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(payload)
+                    except json.JSONDecodeError:
+                        continue
+                    if chunk.get("usage"):
+                        usage = chunk["usage"]
+                    choices = chunk.get("choices") or [{}]
+                    delta = choices[0].get("delta", {})
+                    if delta.get("content"):
+                        acc_content += delta["content"]
+                        yield delta["content"]
+                    for tc in (delta.get("tool_calls") or []):
+                        idx = tc.get("index", 0)
+                        e = acc_tools.setdefault(idx, {"id": "", "name": "", "args": ""})
+                        if tc.get("id"):
+                            e["id"] = tc["id"]
+                        fn = tc.get("function", {})
+                        if fn.get("name"):
+                            e["name"] = fn["name"]
+                        if fn.get("arguments"):
+                            e["args"] += fn["arguments"]
+
+        tool_calls = []
+        raw_tcs = []
+        for idx in sorted(acc_tools):
+            e = acc_tools[idx]
+            try:
+                inp = json.loads(e["args"]) if e["args"] else {}
+            except json.JSONDecodeError:
+                inp = {}
+            tool_calls.append(ToolCall(id=e["id"], name=e["name"], input=inp))
+            raw_tcs.append({"id": e["id"], "type": "function",
+                            "function": {"name": e["name"], "arguments": e["args"]}})
+
+        raw = {"choices": [{"message": {"content": acc_content or None, "tool_calls": raw_tcs}}]}
+        resp_obj = LLMToolResponse(
+            content=acc_content,
+            tool_calls=tool_calls,
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            model=self.model,
+            stop_reason=None,
+        )
+        resp_obj._raw_response = raw
+        yield resp_obj
 
     def format_tool_results(
         self,

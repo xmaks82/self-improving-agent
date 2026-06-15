@@ -254,25 +254,52 @@ class MainAgent(BaseAgent):
             hit_cap = True
 
             for _step in range(MAX_TOOL_ITERATIONS):
-                try:
-                    resp = await asyncio.to_thread(
-                        self.client.chat_with_tools,
-                        work, tools, system_prompt, 4096,
-                    )
-                except Exception as e:
-                    msg = f"\n[model error: {e}]\n"
-                    full_response += msg
-                    yield msg
-                    hit_cap = False
-                    break
+                resp = None
+                # Token-streaming path (per-token output) when the client supports
+                # streaming tool-use; falls back to non-streaming on any failure.
+                if getattr(self.client, "supports_stream_tools", False):
+                    streamed_text = False
+                    try:
+                        async for ev in self.client.stream_with_tools(
+                            work, tools, system_prompt, 4096
+                        ):
+                            if isinstance(ev, str):
+                                if ev:
+                                    streamed_text = True
+                                    full_response += ev
+                                    yield ev
+                            else:
+                                resp = ev  # final LLMToolResponse
+                    except Exception as e:
+                        if resp is None and not streamed_text:
+                            resp = None  # fall through to non-streaming retry
+                        else:
+                            msg = f"\n[stream error: {e}]\n"
+                            full_response += msg
+                            yield msg
+                            hit_cap = False
+                            break
 
-                # Real usage (chat_with_tools returns provider token counts).
+                if resp is None:
+                    try:
+                        resp = await asyncio.to_thread(
+                            self.client.chat_with_tools,
+                            work, tools, system_prompt, 4096,
+                        )
+                    except Exception as e:
+                        msg = f"\n[model error: {e}]\n"
+                        full_response += msg
+                        yield msg
+                        hit_cap = False
+                        break
+                    # Non-streamed → emit the step's text now.
+                    if resp.content:
+                        full_response += resp.content
+                        yield resp.content
+
+                # Real usage (provider token counts).
                 input_tokens += getattr(resp, "input_tokens", 0) or 0
                 output_tokens += getattr(resp, "output_tokens", 0) or 0
-
-                if resp.content:
-                    full_response += resp.content
-                    yield resp.content
 
                 if not resp.has_tool_calls:
                     hit_cap = False

@@ -61,6 +61,10 @@ class BaseLLMClient(ABC):
     provider: str = "base"
     supports_streaming: bool = True
     supports_tools: bool = True
+    # When True, the client implements stream_with_tools() — an async generator
+    # that yields text deltas (str) for token streaming and, last, the final
+    # LLMToolResponse (with _raw_response set for format_tool_results()).
+    supports_stream_tools: bool = False
 
     @abstractmethod
     def chat(

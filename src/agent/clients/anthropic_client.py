@@ -17,6 +17,7 @@ class AnthropicClient(BaseLLMClient):
     provider = "anthropic"
     supports_streaming = True
     supports_tools = True
+    supports_stream_tools = True
 
     # Available Anthropic models
     MODELS = {
@@ -248,6 +249,47 @@ class AnthropicClient(BaseLLMClient):
         )
         result._raw_response = response
         return result
+
+    async def stream_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        system: Optional[str] = None,
+        max_tokens: int = 4096,
+    ):
+        """Token-stream text deltas, then yield the final LLMToolResponse."""
+        kwargs = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "messages": messages,
+            "tools": tools,
+        }
+        if system:
+            kwargs["system"] = system
+
+        async with self.async_client.messages.stream(**kwargs) as stream:
+            async for text in stream.text_stream:
+                yield text
+            final = await stream.get_final_message()
+
+        content = ""
+        tool_calls = []
+        for block in final.content:
+            if hasattr(block, "text"):
+                content += block.text
+            elif block.type == "tool_use":
+                tool_calls.append(ToolCall(id=block.id, name=block.name, input=block.input))
+
+        resp = LLMToolResponse(
+            content=content,
+            tool_calls=tool_calls,
+            input_tokens=final.usage.input_tokens,
+            output_tokens=final.usage.output_tokens,
+            model=self.model,
+            stop_reason=final.stop_reason,
+        )
+        resp._raw_response = final
+        yield resp
 
     def format_tool_results(
         self,
