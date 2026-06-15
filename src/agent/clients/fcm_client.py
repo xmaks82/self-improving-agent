@@ -23,17 +23,17 @@ class FCMClient(OpenRouterClient):
     provider = "fcm"
     BASE_URL = os.getenv("FCM_BASE_URL", "http://localhost:9999/v1")
 
-    # Passthrough: the model id is sent as-is; the router resolves it against its
-    # curated active set (smart model first for agentic work).
-    MODELS = {
-        "fcm": os.getenv("FCM_MODEL", "zai-glm-4.7"),
-    }
+    # The router exposes its own model ids ("fcm", "fcm:free-coding") and resolves
+    # them against its LIVE active set (health-probe + auto-failover). So we send
+    # the id as-is — no per-provider model list to keep up to date here.
+    MODELS: dict = {}
 
     def __init__(self, api_key: Optional[str] = None, model: str = "fcm"):
         # Key is optional for the local router; default to a placeholder so the
         # OpenAI-compatible Authorization header is always well-formed.
         self.api_key = api_key or os.getenv("FCM_API_KEY", "fcm")
-        self.model = self.MODELS.get(model, model)
+        # FCM_MODEL lets you pin e.g. "fcm:free-coding"; default is the router's "fcm".
+        self.model = self.MODELS.get(model, os.getenv("FCM_MODEL", model) if model == "fcm" else model)
 
     def _headers(self) -> dict:
         return {

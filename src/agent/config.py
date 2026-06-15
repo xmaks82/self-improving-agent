@@ -12,12 +12,18 @@ load_dotenv()
 
 @dataclass
 class ModelConfig:
-    """Model configuration."""
-    default: str = "llama-3.3-70b"
-    # Models for improvement pipeline
-    analyzer: str = "llama-3.3-70b"
-    versioner: str = "llama-3.3-70b"
-    feedback: str = "llama-4-scout"
+    """Model configuration.
+
+    Default is the FCM local router ("fcm"): it aggregates free models with
+    live health-probe + auto-failover, so there are no per-provider model ids to
+    keep current here. Override any of these with env (DEFAULT_MODEL, …) to use a
+    specific keyed provider instead.
+    """
+    default: str = "fcm"
+    # Models for improvement pipeline (route through FCM too by default).
+    analyzer: str = "fcm"
+    versioner: str = "fcm"
+    feedback: str = "fcm"
 
 
 @dataclass
@@ -108,10 +114,10 @@ class Config:
         """Load configuration from environment variables."""
         return cls(
             models=ModelConfig(
-                default=os.getenv("DEFAULT_MODEL", "llama-4-scout"),
-                analyzer=os.getenv("ANALYZER_MODEL", "llama-3.3-70b"),
-                versioner=os.getenv("VERSIONER_MODEL", "llama-3.3-70b"),
-                feedback=os.getenv("FEEDBACK_MODEL", "llama-4-scout"),
+                default=os.getenv("DEFAULT_MODEL", "fcm"),
+                analyzer=os.getenv("ANALYZER_MODEL", "fcm"),
+                versioner=os.getenv("VERSIONER_MODEL", "fcm"),
+                feedback=os.getenv("FEEDBACK_MODEL", "fcm"),
             ),
             api=APIConfig.from_env(),
             thresholds=ThresholdConfig(

@@ -37,6 +37,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   OpenAI-compatible/FCM clients; the main loop streams text deltas and falls
   back to non-streaming for providers without it.
 
+### Changed
+- **Default model is now `fcm`** (the local free-model router). It aggregates
+  free models with live health-probe + auto-failover, so the agent doesn't
+  depend on hardcoded per-provider model ids that go stale. Verified live
+  against the router. Direct keyed providers (Groq/Cerebras/SambaNova/Zhipu/
+  OpenRouter/Anthropic) still work — set the matching key and `DEFAULT_MODEL`.
+  Their static model lists are best-effort (not live-verified in this build);
+  prefer `fcm` or verify with your own keys.
+
 ### Fixed
 - OAuth→API-key fallback on the tool path; `check_api_keys` covers OpenRouter;
   prompt-version symlink falls back to copy on Windows; plugin loader actually
