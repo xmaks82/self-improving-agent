@@ -91,15 +91,9 @@ def cli_main():
     cost_tracker = CostTracker()
     runtime_config = RuntimeConfig()
 
-    # Create agent pipeline (connects all agents)
-    from .agents.orchestrator import AgentOrchestrator
-    from .agents.pipeline import AgentPipeline
-
-    orchestrator = AgentOrchestrator(client, prompt_manager, log_manager)
-    pipeline = AgentPipeline(client=client, orchestrator=orchestrator)
-
     # Tool registry — powers the agentic loop (filesystem/shell/git/search/web).
     # sandbox_mode=True confines file ops to the launch directory (safe default).
+    # Built BEFORE the pipeline so sub-agents/verification get the same tools.
     from pathlib import Path
     import sys as _sys
     from .tools.registry import ToolRegistry
@@ -137,6 +131,13 @@ def cli_main():
         confirm_callback=confirm_callback,
         undo_manager=undo_manager,
     )
+
+    # Create agent pipeline (connects all agents) — sub-agents share the registry.
+    from .agents.orchestrator import AgentOrchestrator
+    from .agents.pipeline import AgentPipeline
+
+    orchestrator = AgentOrchestrator(client, prompt_manager, log_manager)
+    pipeline = AgentPipeline(client=client, orchestrator=orchestrator, tool_registry=tool_registry)
 
     # Create main agent with full pipeline
     main_agent = MainAgent(

@@ -69,14 +69,21 @@ class VerificationAgent:
         Returns the full verification report including VERDICT line.
         """
         prompt = self._build_prompt(task_description, files_changed, approach)
-
         messages = [{"role": "user", "content": prompt}]
+
+        # With tools, the verifier actually reads files / runs checks instead of
+        # just asserting from memory.
+        if self.tool_registry is not None and getattr(self.client, "supports_tools", False):
+            from ._tool_loop import run_tool_loop
+            return await run_tool_loop(
+                self.client, self.tool_registry, messages, system=VERIFICATION_SYSTEM_PROMPT
+            )
+
         response = self.client.chat(
             messages=messages,
             system=VERIFICATION_SYSTEM_PROMPT,
             max_tokens=4096,
         )
-
         return response.content
 
     def _build_prompt(

@@ -47,14 +47,16 @@ class AgentPipeline:
     - Manage inter-agent mailbox
     """
 
-    def __init__(self, client: "BaseLLMClient", orchestrator: AgentOrchestrator):
+    def __init__(self, client: "BaseLLMClient", orchestrator: AgentOrchestrator,
+                 tool_registry=None):
         self.client = client
         self.orchestrator = orchestrator
+        self.tool_registry = tool_registry
         self.mailbox = AgentMailbox()
         self.fork_manager = ForkManager()
 
-        # Specialized agents
-        self.verification = VerificationAgent(client=client)
+        # Specialized agents (verification gets tools to actually run checks)
+        self.verification = VerificationAgent(client=client, tool_registry=tool_registry)
         self.explore = ExploreAgent(client=client)
         self.plan = PlanAgent(client=client)
 
@@ -72,12 +74,13 @@ class AgentPipeline:
         from .researcher import Researcher
         from .refactorer import Refactorer
 
+        reg = self.tool_registry
         agents = {
-            AgentType.CODE_REVIEWER: CodeReviewer(client=self.client),
-            AgentType.TEST_WRITER: TestWriter(client=self.client),
-            AgentType.DEBUGGER: Debugger(client=self.client),
-            AgentType.RESEARCHER: Researcher(client=self.client),
-            AgentType.REFACTORER: Refactorer(client=self.client),
+            AgentType.CODE_REVIEWER: CodeReviewer(client=self.client, tool_registry=reg),
+            AgentType.TEST_WRITER: TestWriter(client=self.client, tool_registry=reg),
+            AgentType.DEBUGGER: Debugger(client=self.client, tool_registry=reg),
+            AgentType.RESEARCHER: Researcher(client=self.client, tool_registry=reg),
+            AgentType.REFACTORER: Refactorer(client=self.client, tool_registry=reg),
         }
         for agent_type, agent in agents.items():
             self.orchestrator.register_agent(agent_type, agent)
