@@ -23,6 +23,17 @@ New prompt version saved (v1 → v2 → v3...)
 Next responses use the upgraded "brain"
 ```
 
+## Status (v1.5.0)
+
+The agent **executes tools** (read/edit/write/shell/git/search/web) in a real
+`think → tool → result` loop with confirmation + undo, and can call **MCP-server
+tools** (e.g. a memory server) mid-conversation. Self-improvement runs a
+**closed loop**: per-version feedback metrics + auto-rollback on degradation.
+
+Honest limitations (in progress): sub-agents (CodeReviewer/Debugger/…) and the
+verification agent currently run as single-shot analysts without their own tool
+loop; streaming surfaces output per loop-step, not per token. See CHANGELOG.
+
 ## Features
 
 ### 16-Agent Pipeline

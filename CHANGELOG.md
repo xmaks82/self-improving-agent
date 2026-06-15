@@ -6,6 +6,35 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-06-15
+
+### Added — the agent now actually executes tools (previously a facade)
+- **Real agentic loop:** `MainAgent` runs `think → tool_use → tool_result → repeat`
+  via `ToolRegistry` (was a single streaming chat with tools never wired in).
+  Bounded iterations, loop-detection, tool-errors returned as `tool_result` for
+  recovery, real token accounting from provider usage.
+- **EditFileTool** (targeted `old_string→new_string` edits, read-before-edit,
+  `replace_all`), atomic writes (temp+rename), stale-detection via mtime.
+- **Tool safety wired:** confirmation (Confirmator) for write/run/commit and a
+  working undo (UndoManager) — previously dead code. Shell-injection closed
+  (each sub-command head validated; redirections/subshells blocked in sandbox).
+  SSRF guard for `fetch_url`; read offset/limit + large-file cap.
+- **MCP tools in the loop:** any configured MCP server's tools (e.g. a memory
+  server) are bridged into the registry and callable mid-conversation.
+- **Closed-loop self-improvement:** live per-version feedback metrics +
+  auto-rollback on degradation; FeedbackDetector no longer mistakes work
+  commands ("fix this bug in X") for negative self-feedback; meta-agents
+  (versioner/analyzer) protected from rewrite; real prompt validation.
+- **FCM backend:** local free-model router as a first-class provider
+  (`FCM_BASE_URL`).
+- **CI** (GitHub Actions) + real test suite for the loop/tools/memory/MCP/
+  self-improvement.
+
+### Fixed
+- OAuth→API-key fallback on the tool path; `check_api_keys` covers OpenRouter;
+  prompt-version symlink falls back to copy on Windows; plugin loader actually
+  runs at startup.
+
 ## [1.4.1] - 2026-06-01
 
 ### Changed

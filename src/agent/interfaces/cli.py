@@ -75,6 +75,18 @@ class AgentCLI:
         except Exception as e:
             console.print(f"[yellow]MCP setup skipped: {e}[/yellow]")
 
+        # Load user plugins (~/.agent/plugins) into tools + skills (was never called).
+        try:
+            from ..plugins.loader import PluginLoader
+            registry = getattr(self.main_agent, "_tool_registry", None)
+            loaded = PluginLoader().load_all(
+                tool_registry=registry, skill_registry=get_skill_registry()
+            )
+            if loaded:
+                console.print(f"[dim]Plugins: {loaded} loaded[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]Plugin load skipped: {e}[/yellow]")
+
         console.print(Panel(
             "[bold cyan]Self-Improving AI Agent[/bold cyan]\n"
             "Type your message or /help for commands\n"

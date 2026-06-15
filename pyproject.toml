@@ -1,6 +1,6 @@
 [project]
 name = "self-improving-agent"
-version = "1.4.1"
+version = "1.5.0"
 description = "Self-improving AI agent with 16 interconnected agents, composable prompts, permanent prompt evolution, and hybrid (vector + keyword) long-term memory. 6 LLM providers including free APIs."
 requires-python = ">=3.12"
 dependencies = [
