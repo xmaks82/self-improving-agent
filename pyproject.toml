@@ -1,7 +1,7 @@
 [project]
 name = "self-improving-agent"
 version = "1.5.0"
-description = "Self-improving AI agent with 16 interconnected agents, composable prompts, permanent prompt evolution, and hybrid (vector + keyword) long-term memory. 6 LLM providers including free APIs."
+description = "Terminal coding agent that executes tools (real think→tool→result loop with confirmation + undo, MCP tools in-loop) and rewrites its own system prompt from feedback with metrics + auto-rollback. Free by default via the FCM model router; also Groq/Cerebras/SambaNova/Zhipu/OpenRouter/Claude."
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.40.0",

@@ -3,187 +3,156 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/xmaks82/self-improving-agent)](https://github.com/xmaks82/self-improving-agent/stargazers)
-[![Free LLM Providers](https://img.shields.io/badge/Free_LLM_Providers-6-orange)](#free-6-providers)
+[![CI](https://github.com/xmaks82/self-improving-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/xmaks82/self-improving-agent/actions)
 
 > **[Версия на русском](README_RU.md)**
 
-**AI agents forget. This one permanently evolves.**
+**A terminal coding agent that actually executes tools — and rewrites its own prompt from your feedback.**
 
-A multi-agent system with **16 interconnected agents**, composable prompts, and permanent prompt evolution from user feedback. Runs on **6 free LLM providers** or Claude subscription via OAuth.
+It runs a real `think → tool → result` loop (read/edit/write/shell/git/search/web),
+asks before mutating, can undo, and talks to external **MCP servers** mid-conversation.
+When you give feedback, a background pipeline analyzes the logs and ships an
+improved system prompt — with **metrics + automatic rollback** if the new version
+underperforms. Runs free out of the box via the **FCM** local model router, or on
+any of 6 keyed providers / your Claude subscription.
 
 ```
 You: "Your answers are too long"
-     ↓ FeedbackDetector
-[Analyzer] examines logs, formulates hypotheses
+     ↓ FeedbackDetector  (ignores work commands like "fix this bug")
+[Analyzer] reads logs, forms hypotheses
      ↓
-[Versioner] generates an improved system prompt
+[Versioner] writes an improved system prompt  (meta-agents protected)
      ↓
-New prompt version saved (v1 → v2 → v3...)
+New version goes live  →  feedback metrics tracked
      ↓
-Next responses use the upgraded "brain"
+If it underperforms (≥60% negative over ≥4 samples) → auto-rollback to parent
 ```
 
-## Status (v1.5.0)
+## Highlights (v1.5.0)
 
-The agent **executes tools** (read/edit/write/shell/git/search/web) in a real
-`think → tool → result` loop with confirmation + undo, and can call **MCP-server
-tools** (e.g. a memory server) mid-conversation. Sub-agents
-(CodeReviewer/Debugger/…) and the verification agent run the same tool-loop.
-Self-improvement runs a **closed loop**: per-version feedback metrics +
-auto-rollback on degradation. Output is **token-streamed during tool-use**
-(Anthropic + OpenAI-compatible / FCM), with graceful fallback to non-streaming
-for providers that don't support it.
+- **Real agentic loop** — `think → tool_use → tool_result → repeat`, bounded
+  iterations, loop-detection, tool-errors fed back for recovery, real token
+  accounting. Output is **token-streamed during tool-use** (Anthropic +
+  OpenAI-compatible/FCM), with graceful fallback.
+- **Tools with guardrails** — read / **edit** (targeted) / write (atomic +
+  stale-detection) / shell / git / search / web / worktree / notebook.
+  Confirmation for writes/commands, working **undo**, shell-injection blocked
+  (every sub-command head validated; redirects/subshells refused), SSRF guard
+  that re-validates every redirect hop.
+- **MCP in the loop** — tools from any configured MCP server (e.g. a memory
+  server) are callable by the model mid-conversation.
+- **Closed-loop self-improvement** — per-version feedback metrics + auto-rollback;
+  the feedback detector won't mistake "fix this bug in X" for criticism of itself;
+  the versioner can't rewrite its own / the analyzer's prompt.
+- **Sub-agents with tools** — CodeReviewer / TestWriter / Debugger / Researcher /
+  Refactorer and the adversarial verifier all run the same tool-loop.
+- **Free by default** — `fcm` router aggregates free models with health-probe +
+  auto-failover, so there are no stale model ids to maintain.
 
-## Features
+## LLM Providers
+| Provider | Notes | Key |
+|----------|-------|-----|
+| **FCM** (default) | Local router: free-model aggregation, health-probe, auto-failover | none — set `FCM_BASE_URL` |
+| **Groq** | Fast free tier | [console.groq.com](https://console.groq.com/) |
+| **SambaNova** | ~580 t/s | [cloud.sambanova.ai](https://cloud.sambanova.ai/) |
+| **Cerebras** | Free, ultra-fast | [cloud.cerebras.ai](https://cloud.cerebras.ai/) |
+| **OpenRouter** | Free tier, 1M ctx | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| **Zhipu** | GLM flash free | [open.bigmodel.cn](https://open.bigmodel.cn/) |
+| **Anthropic** | Claude via OAuth subscription or API key (auto-fallback) | [console.anthropic.com](https://console.anthropic.com/) |
 
-### 16-Agent Pipeline
-- **MainAgent** — primary conversational agent with streaming
-- **AnalyzerAgent + VersionerAgent** — self-improvement pipeline
-- **5 Sub-agents** — CodeReviewer, TestWriter, Debugger, Researcher, Refactorer (auto-selected by keywords)
-- **VerificationAgent** — adversarial testing, auto-triggered after 3+ file edits (PASS/FAIL/PARTIAL)
-- **ExploreAgent** — fast read-only codebase search (`/explore`)
-- **PlanAgent** — read-only architecture design (`/plan`)
-- **ForkManager** — background clones with inherited context (`/fork`)
-- **AgentOrchestrator** — coordinates sub-agents with auto-selection
-- **SessionMemory, ContextCompactor, FeedbackDetector** — LLM-powered services
-
-### LLM Providers
-| Provider | Speed | Models | Key |
-|----------|-------|--------|-----|
-| **Groq** | Fast | Llama 4 Scout, Llama 3.3 70B, Qwen3 32B, GPT-OSS 120B/20B | [console.groq.com](https://console.groq.com/) |
-| **SambaNova** | 580 t/s | Llama 4 Maverick, DeepSeek V3.1/V3.2, MiniMax M2.7, Gemma 4, GPT-OSS | [cloud.sambanova.ai](https://cloud.sambanova.ai/) |
-| **Cerebras** | Ultra-fast | Llama 3.1 8B, Qwen3 235B, GPT-OSS 120B, GLM 4.7 | [cloud.cerebras.ai](https://cloud.cerebras.ai/) |
-| **OpenRouter** | Free tier | Qwen3-Next, Qwen3-Coder, Kimi K2.6, GLM 4.5 Air | [openrouter.ai/keys](https://openrouter.ai/keys) |
-| **Zhipu** | No limits | GLM 4.5/4.7 Flash (free), GLM 5.1/5/4.7 | [open.bigmodel.cn](https://open.bigmodel.cn/) |
-| **FCM** | Local router | Free-model router (health-probe + auto-failover) via `FCM_BASE_URL` | local, no key |
-| **Anthropic** | OAuth/API | Claude Opus 4.8/4.7/4.6, Sonnet 4.6, Haiku 4.5 | [console.anthropic.com](https://console.anthropic.com/) |
-
-**Claude subscription auth**: Use your Pro/Max subscription via OAuth — `/auth paste` with setup-token. Auto-fallback to API key if blocked.
-
-### Tools & Security
-- **13 Core Tools** + 4 deferred — filesystem, git, shell, search, web, worktree, notebook, messaging
-- **6-Layer Bash Security** — command substitution, redirects, variables, control chars, Unicode, git safety
-- **Command Semantics** — grep exit 1 = "no matches" not error; diff exit 1 = "files differ"
-- **Read-Before-Edit** — files must be read before modification
-- **Permission System** — auto-approve reads, confirm writes, block dangerous operations
-- **Secret Scanner** — detects 8 credential patterns before sharing in team memory
-
-### Skills (Slash Commands)
-| Skill | Description |
-|-------|-------------|
-| `/commit` | Intelligent git commit with safety protocol |
-| `/review [PR]` | PR code review via gh CLI |
-| `/simplify` | Review changed code for quality |
-| `/debug [issue]` | Structured debugging workflow |
-
-### Session & Memory
-- **Hybrid Long-Term Memory** — vector similarity (embeddings) + keyword matching fused via Reciprocal Rank Fusion. Optional & graceful: no embeddings backend → automatic keyword-only fallback. Point `EMBEDDINGS_URL` at any OpenAI-compatible endpoint (local llama-server, Ollama, OpenAI). Unicode-aware (works for non-English memory)
-- **4 Memory Types** — episodic, semantic, procedural, working — with importance decay & promotion (consolidation)
-- **Context Compaction** — auto-summarize old messages (`/compact`)
-- **Session Memory** — background auto-notes maintained by LLM (`/summary`)
-- **Session Persistence** — save/resume across restarts (`/sessions`, `/resume`)
-- **Team Memory** — shared knowledge per-repo with secret scanning (`/team`)
-- **Bounded Memory** — 200 lines / 25KB cap with truncation
-- **Plugin System** — load external plugins from `~/.agent/plugins/`
+Keyed providers expose curated model shortcuts; treat their static lists as
+best-effort and prefer `fcm` (or verify with your own key) — provider catalogs
+change often.
 
 ## Quick Start
 
 ```bash
 git clone https://github.com/xmaks82/self-improving-agent.git
 cd self-improving-agent
-cp .env.example .env
-nano .env  # Add at least one free API key
-make run   # Docker (recommended)
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e .
+agent      # runs free via FCM by default (no key required)
 ```
 
-Or local install:
+To use a keyed provider instead: put a key in `.env` (`cp .env.example .env`)
+and set `DEFAULT_MODEL` (e.g. `llama-3.3-70b` for Groq). Docker: `make run`.
+
+### Connect a memory backend (optional)
+
+Point the agent at an MCP memory server in `~/.agent/mcp.yaml`:
+
+```yaml
+servers:
+  memory:
+    command: /path/to/python
+    args: [/path/to/memory_server.py]
+    env: {MEMORY_DIR: /path/to/memory}
+    enabled: true
+```
+
+Its tools (search/save/recall…) are bridged into the loop automatically at start.
+
+## Configuration (env)
+
 ```bash
-python -m venv venv && source venv/bin/activate
-pip install -e . && agent
+# Free by default — nothing required. To pin the local router model:
+FCM_BASE_URL=http://localhost:9999/v1   # OpenAI-compatible endpoint
+FCM_MODEL=fcm                            # or fcm:free-coding
+
+# Keyed providers (optional) — set a key + choose the model
+GROQ_API_KEY=gsk_...
+OPENROUTER_API_KEY=sk-or-...
+ANTHROPIC_API_KEY=sk-ant-...             # or Claude OAuth: claude setup-token → /auth paste
+DEFAULT_MODEL=fcm                        # default; e.g. llama-3.3-70b, claude-haiku, …
+
+# Tuning
+AGENT_MAX_TOOL_ITERATIONS=25
+FACT_DISTILL=1
 ```
 
-## CLI Commands
+## Key CLI Commands
 
 | Command | Description |
 |---------|-------------|
 | `/model [NAME]` | Show or switch model |
-| `/plan TASK` | Architecture design (read-only) |
-| `/explore QUERY` | Codebase search (read-only) |
-| `/fork NAME TASK` | Fork agent in background |
-| `/forks` | Show fork status/results |
-| `/verify` | Run adversarial verification |
-| `/auth [status\|paste]` | Manage Claude subscription auth |
-| `/compact` | Compress conversation history |
-| `/sessions` | List saved sessions |
-| `/resume ID` | Resume a saved session |
-| `/cost` | Token usage and cost breakdown |
-| `/export [md\|json]` | Export conversation to file |
-| `/config [set K V]` | Runtime config |
-| `/diff [V1] [V2]` | Prompt version diff |
-| `/style [NAME]` | Output style (default/concise/explanatory/teaching) |
-| `/commit` | Git commit skill |
-| `/review [PR]` | PR review skill |
-| `/simplify` | Code quality skill |
-| `/debug [issue]` | Debugging skill |
-| `/summary` | Session notes |
-| `/team list\|add\|show` | Team shared memory |
-| `/plugins` | List loaded plugins |
-| `/voice` | Push-to-talk voice input |
-| `/tasks` | Task management |
-| `/prompt` | Current system prompt |
-| `/versions` | Prompt version history |
-| `/feedback TEXT` | Submit feedback |
-| `/stats` | Session statistics |
-
-## Configuration
-
-```bash
-# Free API keys (need at least one)
-GROQ_API_KEY=gsk_...
-SAMBANOVA_API_KEY=...
-CEREBRAS_API_KEY=...
-OPENROUTER_API_KEY=sk-or-...
-ZHIPU_API_KEY=...
-
-# Or Claude subscription (OAuth)
-# Run: claude setup-token → then /auth paste TOKEN
-
-# Or Anthropic API key (paid)
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Model config
-DEFAULT_MODEL=llama-4-scout
-ANALYZER_MODEL=llama-3.3-70b
-VERSIONER_MODEL=llama-3.3-70b
-```
+| `/tools` | List all tools (local + MCP) |
+| `/mcp connect\|list` | Manage MCP servers |
+| `/plan TASK` · `/explore QUERY` | Read-only design / codebase search |
+| `/fork NAME TASK` · `/forks` | Background agent clones |
+| `/verify` | Adversarial verification (tool-enabled) |
+| `/auth [status\|paste]` | Claude subscription auth |
+| `/compact` · `/sessions` · `/resume ID` | History / session management |
+| `/cost` · `/stats` · `/export [md\|json]` | Usage, stats, export |
+| `/commit` · `/review [PR]` · `/simplify` · `/debug` | Skills |
+| `/feedback TEXT` · `/versions` · `/diff [V1] [V2]` · `/prompt` | Self-improvement |
+| `/team` · `/summary` · `/plugins` · `/voice` | Memory, notes, plugins, voice |
 
 ## Project Structure
 
 ```
 src/agent/
-├── main.py              # Entry point
-├── config.py            # Configuration
-├── auth/                # OAuth subscription auth
-├── prompts/             # Composable system prompt (10 sections)
-├── agents/              # 16 agents + pipeline orchestration
-│   ├── pipeline.py      # Central agent wiring
-│   ├── main_agent.py    # Primary agent
-│   ├── verification.py  # Adversarial verifier
-│   ├── explore.py       # Read-only search
-│   ├── plan.py          # Architecture design
-│   ├── fork.py          # Background clones
-│   └── ...              # Sub-agents, analyzer, versioner
-├── skills/              # Extensible slash commands
-├── plugins/             # External plugin loader
-├── tools/               # 13 core + 4 deferred tools
-├── memory/              # SQLite memory + team sync + secret scanner
-├── core/                # Feedback, cost, compaction, session memory, mailbox
-├── storage/             # Versioned prompts, logs, sessions
-├── clients/             # 6 LLM provider clients + OAuth
-├── planning/            # Task management
-├── mcp/                 # Model Context Protocol
-├── approval/            # Human-in-the-loop
-└── interfaces/          # CLI (35+ commands) + voice
+├── main.py            # Entry point (builds registry → pipeline → CLI)
+├── config.py          # Configuration (default model: fcm)
+├── agents/            # main_agent, sub-agents, verification, analyzer, versioner,
+│                      #   pipeline, _tool_loop (shared bounded tool-loop)
+├── tools/             # filesystem(edit/atomic/stale), shell(hardened), git, search,
+│                      #   web(SSRF guard), worktree, notebook, registry, permissions
+├── approval/          # confirmation + undo (wired into the registry)
+├── clients/           # provider clients + FCM + OpenAI-compat + OAuth; stream_with_tools
+├── mcp/               # MCP client/manager + bridge into the tool registry
+├── memory/            # SQLite hybrid memory (vector+keyword RRF), secret scanner, bounds
+├── core/              # feedback (closed loop), cost, compaction, session memory
+├── storage/           # versioned prompts (metrics + auto-rollback), logs, sessions
+├── prompts/ · skills/ · plugins/ · planning/ · interfaces/   # composer, slash-skills, plugins, tasks, CLI+voice
+tests/                 # loop, tool-safety, MCP bridge, self-improve, streaming, …
+```
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest -q          # test suite
+ruff check src tests
 ```
 
 ## License
