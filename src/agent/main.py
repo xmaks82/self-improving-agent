@@ -26,6 +26,7 @@ def check_api_keys(model: str) -> bool:
         "groq": ("GROQ_API_KEY", "https://console.groq.com/"),
         "cerebras": ("CEREBRAS_API_KEY", "https://cloud.cerebras.ai/"),
         "sambanova": ("SAMBANOVA_API_KEY", "https://cloud.sambanova.ai/"),
+        "openrouter": ("OPENROUTER_API_KEY", "https://openrouter.ai/keys"),
     }
 
     api_config = provider_keys.get(provider)
