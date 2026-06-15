@@ -97,6 +97,12 @@ def cli_main():
     orchestrator = AgentOrchestrator(client, prompt_manager, log_manager)
     pipeline = AgentPipeline(client=client, orchestrator=orchestrator)
 
+    # Tool registry — powers the agentic loop (filesystem/shell/git/search/web).
+    # sandbox_mode=True confines file ops to the launch directory (safe default).
+    from pathlib import Path
+    from .tools.registry import ToolRegistry
+    tool_registry = ToolRegistry(working_dir=Path.cwd(), sandbox_mode=True)
+
     # Create main agent with full pipeline
     main_agent = MainAgent(
         client=client,
@@ -106,6 +112,7 @@ def cli_main():
         session_store=session_store,
         cost_tracker=cost_tracker,
         pipeline=pipeline,
+        tool_registry=tool_registry,
     )
 
     # Create and run CLI

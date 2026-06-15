@@ -3,6 +3,7 @@
 from typing import AsyncIterator, Optional, TYPE_CHECKING
 from datetime import datetime, timezone
 import asyncio
+import os
 import time
 
 from .base import BaseAgent
@@ -21,6 +22,13 @@ if TYPE_CHECKING:
 if TYPE_CHECKING:
     from ..core.feedback import FeedbackDetector, Feedback
     from ..storage.sessions import SessionStore
+    from ..tools.registry import ToolRegistry
+
+
+# Bound the agentic tool-loop so a misbehaving model can't spin forever / burn tokens.
+MAX_TOOL_ITERATIONS = int(os.environ.get("AGENT_MAX_TOOL_ITERATIONS", "25"))
+# Cap a single tool's output fed back to the model (protects context window).
+MAX_TOOL_OUTPUT = int(os.environ.get("AGENT_MAX_TOOL_OUTPUT", "20000"))
 
 
 class MainAgent(BaseAgent):
@@ -47,6 +55,7 @@ class MainAgent(BaseAgent):
         session_store: Optional["SessionStore"] = None,
         cost_tracker: Optional[CostTracker] = None,
         pipeline: Optional["AgentPipeline"] = None,
+        tool_registry: Optional["ToolRegistry"] = None,
     ):
         super().__init__(
             client=client,
@@ -57,6 +66,8 @@ class MainAgent(BaseAgent):
         self.feedback_detector = feedback_detector
         self.session_store = session_store
         self.cost_tracker = cost_tracker or CostTracker()
+        # Tool registry powers the agentic loop. None → plain chat (back-compat).
+        self._tool_registry = tool_registry
         self.compactor = ContextCompactor(client)
         self.session_memory = SessionMemoryManager(client, self.session_id)
         self.pipeline = pipeline
@@ -91,6 +102,12 @@ class MainAgent(BaseAgent):
         else:
             # Different provider - create new client
             self.client = create_client(model)
+
+    def _get_tool_names(self) -> set:
+        """Tool names for prompt composition (consumed by BaseAgent.get_system_prompt)."""
+        if self._tool_registry is None:
+            return set()
+        return set(self._tool_registry.get_tool_names())
 
     async def fork(self, name: str, directive: str) -> str:
         """Fork this agent in the background with inherited context."""
@@ -214,31 +231,112 @@ class MainAgent(BaseAgent):
         if self.feedback_detector:
             feedback = self.feedback_detector.detect(message)
 
-        # Stream response
+        # ---- Generate the reply ----
+        # If a tool registry is wired, run the real agentic loop
+        # (think → tool_use → tool_result → repeat). Otherwise fall back
+        # to a plain streaming reply (back-compat).
+        registry = self._tool_registry
+        use_tools = registry is not None and getattr(self.client, "supports_tools", True)
+
         full_response = ""
+        input_tokens = 0
+        output_tokens = 0
 
-        # Use unified streaming interface
-        async for chunk in self.client.stream(
-            messages=self.conversation_history,
-            system=system_prompt,
-            max_tokens=4096,
-        ):
-            full_response += chunk
-            yield chunk
+        if use_tools:
+            from ..clients.base import ToolResult as _ToolResultMsg
 
-        # Estimate tokens from text lengths (streaming doesn't return usage)
-        input_text = system_prompt + "".join(
-            m.get("content", "") for m in self.conversation_history
-        )
-        input_tokens = len(input_text) // 4
-        output_tokens = len(full_response) // 4
+            tools = registry.get_anthropic_tools()
+            # Working buffer carries tool_use/tool_result blocks for THIS turn only;
+            # conversation_history stays string-content (compactor/save_session rely on that).
+            work: list[dict] = list(self.conversation_history)
+            last_sig = None
+            repeat = 0
+            hit_cap = True
+
+            for _step in range(MAX_TOOL_ITERATIONS):
+                try:
+                    resp = await asyncio.to_thread(
+                        self.client.chat_with_tools,
+                        work, tools, system_prompt, 4096,
+                    )
+                except Exception as e:
+                    msg = f"\n[model error: {e}]\n"
+                    full_response += msg
+                    yield msg
+                    hit_cap = False
+                    break
+
+                # Real usage (chat_with_tools returns provider token counts).
+                input_tokens += getattr(resp, "input_tokens", 0) or 0
+                output_tokens += getattr(resp, "output_tokens", 0) or 0
+
+                if resp.content:
+                    full_response += resp.content
+                    yield resp.content
+
+                if not resp.has_tool_calls:
+                    hit_cap = False
+                    break
+
+                # Loop guard: identical tool-call set repeated → abort.
+                sig = tuple((tc.name, repr(tc.input)) for tc in resp.tool_calls)
+                repeat = repeat + 1 if sig == last_sig else 0
+                last_sig = sig
+                if repeat >= 2:
+                    msg = "\n[aborting: repeated identical tool calls]\n"
+                    full_response += msg
+                    yield msg
+                    hit_cap = False
+                    break
+
+                # Execute each tool; tool errors come back AS tool_result so the
+                # model can see them and recover, never crashing the loop.
+                results = []
+                for tc in resp.tool_calls:
+                    yield f"\n[tool] {tc.name}\n"
+                    try:
+                        tr = await registry.execute(tc.name, **(tc.input or {}))
+                        if tr.success:
+                            out = tr.output or ""
+                        else:
+                            out = f"ERROR: {tr.error or ''}\n{tr.output or ''}".strip()
+                    except Exception as e:
+                        out = f"ERROR: tool '{tc.name}' raised: {e}"
+                    results.append(_ToolResultMsg(
+                        tool_call_id=tc.id,
+                        content=(out or "(no output)")[:MAX_TOOL_OUTPUT],
+                    ))
+
+                assistant_msg, tool_msgs = self.client.format_tool_results(resp, results)
+                work.append(assistant_msg)
+                work.extend(tool_msgs)
+
+            if hit_cap:
+                msg = f"\n[reached max tool iterations ({MAX_TOOL_ITERATIONS})]\n"
+                full_response += msg
+                yield msg
+        else:
+            # Plain streaming fallback (no tools wired).
+            async for chunk in self.client.stream(
+                messages=self.conversation_history,
+                system=system_prompt,
+                max_tokens=4096,
+            ):
+                full_response += chunk
+                yield chunk
+            # Streaming gives no usage → estimate.
+            input_text = system_prompt + "".join(
+                m.get("content", "") for m in self.conversation_history
+            )
+            input_tokens = len(input_text) // 4
+            output_tokens = len(full_response) // 4
 
         # Record cost
         self.cost_tracker.record(
             self.provider, self.model, input_tokens, output_tokens
         )
 
-        # Add assistant response to history
+        # Add assistant response to history (clean string content)
         self.conversation_history.append({
             "role": "assistant",
             "content": full_response,
