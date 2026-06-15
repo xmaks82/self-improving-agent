@@ -4,7 +4,7 @@ Enforces the read-before-edit/write pattern from Claude Code.
 """
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 

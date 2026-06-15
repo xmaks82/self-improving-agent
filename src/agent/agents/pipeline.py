@@ -14,7 +14,6 @@ This is the central wiring that makes agents work together:
 10. Skills dispatch /commit /review /simplify /debug (manual)
 """
 
-import asyncio
 import logging
 from typing import Optional, TYPE_CHECKING
 
@@ -26,7 +25,6 @@ from .fork import ForkManager
 from ..core.mailbox import AgentMailbox
 
 if TYPE_CHECKING:
-    from .main_agent import MainAgent
     from ..clients.base import BaseLLMClient
     from ..tools.file_state import FileReadStateTracker
 

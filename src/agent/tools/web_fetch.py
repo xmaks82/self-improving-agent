@@ -85,21 +85,30 @@ class WebFetchTool(BaseTool):
         if not self._is_valid_url(url):
             return ToolResult.fail(f"Invalid URL: {url}")
 
-        # SSRF guard — refuse internal/metadata targets.
-        safe, reason = await _ssrf_check(url)
-        if not safe:
-            return ToolResult.fail(f"Blocked by SSRF guard: {reason}")
-
         try:
+            # Manual redirect handling so the SSRF guard re-validates EVERY hop
+            # (auto-follow would let a redirect to a private IP bypass the check).
+            current = url
             async with httpx.AsyncClient(
                 timeout=self.timeout,
-                follow_redirects=True,
-                max_redirects=self.max_redirects,
+                follow_redirects=False,
             ) as client:
-                response = await client.get(
-                    url,
-                    headers={"User-Agent": self.USER_AGENT},
-                )
+                response = None
+                for _hop in range(self.max_redirects + 1):
+                    if not self._is_valid_url(current):
+                        return ToolResult.fail(f"Invalid URL: {current}")
+                    safe, reason = await _ssrf_check(current)
+                    if not safe:
+                        return ToolResult.fail(f"Blocked by SSRF guard: {reason}")
+                    response = await client.get(
+                        current, headers={"User-Agent": self.USER_AGENT},
+                    )
+                    if response.is_redirect and response.headers.get("location"):
+                        current = str(urljoin(current, response.headers["location"]))
+                        continue
+                    break
+                else:
+                    return ToolResult.fail(f"Too many redirects: {url}")
                 response.raise_for_status()
 
             content_type = response.headers.get("content-type", "")

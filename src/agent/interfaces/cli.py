@@ -4,7 +4,6 @@ import asyncio
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import aiofiles
 from rich.console import Console
@@ -752,14 +751,14 @@ class AgentCLI:
             )
         else:
             lines = [
-                f"# Conversation Export",
-                f"",
+                "# Conversation Export",
+                "",
                 f"- **Session**: {metadata['session_id']}",
                 f"- **Model**: {metadata['model']} ({metadata['provider']})",
                 f"- **Turns**: {metadata['turns']}",
                 f"- **Tokens**: {metadata['tokens']:,}",
                 f"- **Exported**: {metadata['exported_at'][:19]}",
-                f"",
+                "",
                 "---",
                 "",
             ]
@@ -1402,24 +1401,36 @@ servers:
 """)
 
     def _show_tools(self):
-        """List all available MCP tools."""
-        tools = self.mcp_manager.list_tools()
-
-        if not tools:
-            console.print("[dim]No tools available.[/dim]")
-            console.print("[dim]Connect to MCP servers first: /mcp connect <name>[/dim]")
-            return
-
+        """List ALL tools available to the agentic loop (core + MCP)."""
         table = Table(title="Available Tools", show_header=True)
         table.add_column("Tool", style="cyan")
-        table.add_column("Server", style="dim")
+        table.add_column("Source", style="dim")
         table.add_column("Description")
 
-        for tool in tools:
+        count = 0
+        # Core/local tools from the agent's registry (what the loop actually calls).
+        registry = getattr(self.main_agent, "_tool_registry", None)
+        if registry is not None:
+            for tool in registry.list_tools():
+                desc = (tool.description or "")
+                if len(desc) > 60:
+                    desc = desc[:57] + "..."
+                table.add_row(tool.name, "local", desc)
+                count += 1
+
+        # MCP tools (also bridged into the registry, but show their server).
+        for tool in self.mcp_manager.list_tools():
             desc = tool["description"]
             if len(desc) > 60:
                 desc = desc[:57] + "..."
-            table.add_row(tool["name"], tool["server"], desc)
+            table.add_row(tool["name"], f"mcp:{tool['server']}", desc)
+            count += 1
+
+        if count == 0:
+            console.print("[dim]No tools available.[/dim]")
+            return
 
         console.print(table)
-        console.print(f"\n[dim]{len(tools)} tool(s) from {self.mcp_manager.connected_count} server(s)[/dim]")
+        console.print(
+            f"\n[dim]{count} tool(s); MCP servers connected: {self.mcp_manager.connected_count}[/dim]"
+        )

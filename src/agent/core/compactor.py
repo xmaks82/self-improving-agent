@@ -1,7 +1,6 @@
 """Context compaction - summarizes old conversation history to save tokens."""
 
 import logging
-from typing import Optional
 
 from ..clients.base import BaseLLMClient
 

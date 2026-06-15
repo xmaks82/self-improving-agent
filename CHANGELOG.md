@@ -30,10 +30,18 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 - **CI** (GitHub Actions) + real test suite for the loop/tools/memory/MCP/
   self-improvement.
 
+- **Sub-agents + verification run the same tool-loop** (shared `run_tool_loop`),
+  no longer single-shot; sub-agent errors propagate instead of masquerading as
+  successful output.
+
 ### Fixed
 - OAuth→API-key fallback on the tool path; `check_api_keys` covers OpenRouter;
   prompt-version symlink falls back to copy on Windows; plugin loader actually
   runs at startup.
+- Hardening from final re-audit: shell guards run even outside sandbox;
+  redirect-following re-validates every hop against the SSRF guard; anti-loop
+  aborts on first repeat; atomic-write uses unique temp names; oversized files
+  skip undo journaling; `/tools` lists core+MCP tools; ruff lint enforced in CI.
 
 ## [1.4.1] - 2026-06-01
 

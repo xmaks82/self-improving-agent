@@ -149,7 +149,10 @@ def test_read_truncates_large_file(tmp_path):
 def test_shell_guards_active_without_sandbox(tmp_path):
     from agent.tools.shell import RunCommandTool
     t = RunCommandTool(working_dir=tmp_path, sandbox_mode=False)
-    ok = lambda c: t._is_command_allowed(c)[0]
+
+    def ok(c):
+        return t._is_command_allowed(c)[0]
+
     # dangerous + redirect + subshell still blocked in trusted mode
     assert ok("git status; rm -rf x") is False   # rm is always-denied
     assert ok("cat f > out") is False            # redirection blocked

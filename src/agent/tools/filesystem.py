@@ -10,6 +10,15 @@ import aiofiles.os
 from .base import BaseTool, ToolResult
 
 
+# Don't store undo before/after for very large files (would bloat history.json
+# and rewrite the whole journal on every edit). Undo just won't cover these.
+_UNDO_MAX_BYTES = 256_000
+
+
+def _undo_too_big(*texts) -> bool:
+    return any(t is not None and len(t) > _UNDO_MAX_BYTES for t in texts)
+
+
 async def _atomic_write(resolved: Path, content: str, encoding: str) -> None:
     """Write via temp file + os.replace so an interrupted write never leaves
     a truncated/corrupt target (atomic on the same filesystem). Unique temp
@@ -216,8 +225,8 @@ class WriteFileTool(BaseTool):
 
             await _atomic_write(resolved, content, encoding)
 
-            # Record for rollback.
-            if self.undo_manager is not None:
+            # Record for rollback (skip oversized files to keep the journal lean).
+            if self.undo_manager is not None and not _undo_too_big(before, content):
                 try:
                     await self.undo_manager.record_file_write(str(resolved), before, content)
                 except Exception:
@@ -324,7 +333,7 @@ class EditFileTool(BaseTool):
 
             await _atomic_write(resolved, new_content, encoding)
 
-            if self.undo_manager is not None:
+            if self.undo_manager is not None and not _undo_too_big(content, new_content):
                 try:
                     await self.undo_manager.record_file_write(str(resolved), content, new_content)
                 except Exception:

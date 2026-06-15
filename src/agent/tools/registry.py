@@ -195,7 +195,6 @@ class ToolRegistry:
 
         # Confirmation for CONFIRM-level tools (write/run/commit) when a UI wired
         # a callback. Without a callback we pass through (headless/auto mode).
-        from .permissions import PermissionLevel
         if (self.confirm_callback is not None
                 and self.permission_manager.get_permission(name) == PermissionLevel.CONFIRM):
             try:
@@ -219,7 +218,6 @@ class ToolRegistry:
 
         auto_approve: MCP servers are explicitly configured/trusted → skip the
         CONFIRM gate by default (override per-tool via permission_manager)."""
-        from .permissions import PermissionLevel
         count = 0
         for d in mcp_manager.tool_adapter.get_tool_definitions():
             self.register(_MCPToolWrapper(d, mcp_manager.execute_tool))

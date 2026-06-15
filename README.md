@@ -27,12 +27,13 @@ Next responses use the upgraded "brain"
 
 The agent **executes tools** (read/edit/write/shell/git/search/web) in a real
 `think → tool → result` loop with confirmation + undo, and can call **MCP-server
-tools** (e.g. a memory server) mid-conversation. Self-improvement runs a
-**closed loop**: per-version feedback metrics + auto-rollback on degradation.
+tools** (e.g. a memory server) mid-conversation. Sub-agents
+(CodeReviewer/Debugger/…) and the verification agent run the same tool-loop.
+Self-improvement runs a **closed loop**: per-version feedback metrics +
+auto-rollback on degradation.
 
-Honest limitations (in progress): sub-agents (CodeReviewer/Debugger/…) and the
-verification agent currently run as single-shot analysts without their own tool
-loop; streaming surfaces output per loop-step, not per token. See CHANGELOG.
+Honest note: output streams per loop-step, not per token — the multi-provider
+tool-loop uses non-streaming completions internally. See CHANGELOG.
 
 ## Features
 

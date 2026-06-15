@@ -27,7 +27,6 @@ def test_check_api_keys_requires_provider_key(monkeypatch):
 
 def test_check_api_keys_covers_openrouter(monkeypatch):
     """OpenRouter models must require OPENROUTER_API_KEY (audit gap)."""
-    from agent.clients.factory import get_provider
     # Find any openrouter-mapped model; skip if none in the current map.
     import agent.clients.factory as fac
     or_models = [m for m, p in getattr(fac, "MODEL_PROVIDERS", {}).items() if p == "openrouter"]

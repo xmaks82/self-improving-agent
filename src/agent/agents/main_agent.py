@@ -368,7 +368,6 @@ class MainAgent(BaseAgent):
 
         # Auto-verification after 3+ file edits
         if self.pipeline:
-            from ..tools.file_state import FileReadStateTracker
             # Access file_state from pipeline's orchestrator if available
             registry = getattr(self, '_tool_registry', None)
             if registry and hasattr(registry, 'file_state'):

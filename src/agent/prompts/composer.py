@@ -15,9 +15,7 @@ Sections:
 
 import os
 import platform
-import subprocess
 from pathlib import Path
-from typing import Optional
 
 from .tool_prompts import TOOL_PROMPTS
 from ..core.output_styles import get_current_style
@@ -74,7 +72,7 @@ def get_using_tools_section(tool_names: set[str]) -> str:
         "  - To search content use grep tool instead of grep command",
     ]
     if tool_names:
-        items.append(f"You can call multiple tools in a single response. If tools are independent, call them in parallel.")
+        items.append("You can call multiple tools in a single response. If tools are independent, call them in parallel.")
     return "# Using your tools\n" + "\n".join(f" - {item}" for item in items)
 
 

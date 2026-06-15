@@ -34,7 +34,6 @@ def truncate_memory_content(
     at the last newline before the cap.
     """
     lines = raw.split("\n")
-    original_line_count = len(lines)
 
     # Step 1: Line truncation
     was_line_truncated = False
