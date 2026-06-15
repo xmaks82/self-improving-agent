@@ -1,11 +1,28 @@
 """Filesystem tools with read-before-edit enforcement."""
 
+import os
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 import aiofiles
 import aiofiles.os
 
 from .base import BaseTool, ToolResult
+
+
+async def _atomic_write(resolved: Path, content: str, encoding: str) -> None:
+    """Write via temp file + os.replace so an interrupted write never leaves
+    a truncated/corrupt target (atomic on the same filesystem)."""
+    tmp = resolved.with_name(resolved.name + ".tmp-agent")
+    try:
+        async with aiofiles.open(tmp, "w", encoding=encoding) as f:
+            await f.write(content)
+        os.replace(tmp, resolved)
+    finally:
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            pass
 
 if TYPE_CHECKING:
     from .file_state import FileReadStateTracker
@@ -143,16 +160,22 @@ class WriteFileTool(BaseTool):
                         f"File exists but has not been read yet. "
                         f"Use read_file first before writing to: {path}"
                     )
+                # Guard against clobbering external edits made since our read.
+                if self.file_state.disk_changed_since_read(str(resolved)):
+                    return ToolResult.fail(
+                        f"File changed on disk since you read it. "
+                        f"Re-read before writing to: {path}"
+                    )
 
             if create_dirs:
                 resolved.parent.mkdir(parents=True, exist_ok=True)
 
-            async with aiofiles.open(resolved, "w", encoding=encoding) as f:
-                await f.write(content)
+            await _atomic_write(resolved, content, encoding)
 
-            # Track write
+            # Track write and refresh the read baseline (we now know current content).
             if self.file_state:
                 self.file_state.record_write(str(resolved))
+                self.file_state.record_read(str(resolved))
 
             return ToolResult.ok(
                 f"Written {len(content)} bytes to {path}",
@@ -164,6 +187,108 @@ class WriteFileTool(BaseTool):
             return ToolResult.fail(str(e))
         except Exception as e:
             return ToolResult.fail(f"Error writing file: {e}")
+
+
+class EditFileTool(BaseTool):
+    """Make a targeted edit: replace an exact string with another."""
+
+    name = "edit_file"
+    description = (
+        "Replace an exact substring in a file with new text. You MUST read the "
+        "file first. old_string must match exactly and be unique unless replace_all=true."
+    )
+    parameters = {
+        "type": "object",
+        "properties": {
+            "path": {"type": "string", "description": "Path to the file to edit"},
+            "old_string": {"type": "string", "description": "Exact text to replace"},
+            "new_string": {"type": "string", "description": "Replacement text"},
+            "replace_all": {
+                "type": "boolean",
+                "description": "Replace all occurrences (default: false)",
+                "default": False,
+            },
+            "encoding": {"type": "string", "description": "File encoding", "default": "utf-8"},
+        },
+        "required": ["path", "old_string", "new_string"],
+    }
+
+    def __init__(self, base_path: Optional[Path] = None, file_state: Optional["FileReadStateTracker"] = None):
+        self.base_path = base_path
+        self.file_state = file_state
+
+    def _resolve_path(self, path: str) -> Path:
+        p = Path(path)
+        if self.base_path:
+            resolved = (self.base_path / p).resolve()
+            if not resolved.is_relative_to(self.base_path.resolve()):
+                raise PermissionError(f"Access denied: {path}")
+            return resolved
+        return p.resolve()
+
+    async def execute(
+        self,
+        path: str,
+        old_string: str,
+        new_string: str,
+        replace_all: bool = False,
+        encoding: str = "utf-8",
+        **kwargs,
+    ) -> ToolResult:
+        try:
+            resolved = self._resolve_path(path)
+            if not resolved.exists() or not resolved.is_file():
+                return ToolResult.fail(f"File not found: {path}")
+
+            if self.file_state:
+                if not self.file_state.has_been_read(str(resolved)):
+                    return ToolResult.fail(
+                        f"File has not been read yet. Use read_file first before editing: {path}"
+                    )
+                if self.file_state.disk_changed_since_read(str(resolved)):
+                    return ToolResult.fail(
+                        f"File changed on disk since you read it. Re-read before editing: {path}"
+                    )
+
+            if old_string == new_string:
+                return ToolResult.fail("old_string and new_string are identical — nothing to do.")
+
+            async with aiofiles.open(resolved, "r", encoding=encoding) as f:
+                content = await f.read()
+
+            count = content.count(old_string)
+            if count == 0:
+                return ToolResult.fail("old_string not found in file.")
+            if count > 1 and not replace_all:
+                return ToolResult.fail(
+                    f"old_string appears {count} times — add more context to make it unique, "
+                    f"or pass replace_all=true."
+                )
+
+            if replace_all:
+                new_content = content.replace(old_string, new_string)
+            else:
+                new_content = content.replace(old_string, new_string, 1)
+
+            await _atomic_write(resolved, new_content, encoding)
+
+            if self.file_state:
+                self.file_state.record_write(str(resolved))
+                self.file_state.record_read(str(resolved))
+
+            n = count if replace_all else 1
+            return ToolResult.ok(
+                f"Edited {path} ({n} replacement{'s' if n != 1 else ''}).",
+                path=str(resolved),
+                replacements=n,
+            )
+
+        except PermissionError as e:
+            return ToolResult.fail(str(e))
+        except UnicodeDecodeError:
+            return ToolResult.fail(f"Cannot decode file with encoding {encoding}")
+        except Exception as e:
+            return ToolResult.fail(f"Error editing file: {e}")
 
 
 class ListDirectoryTool(BaseTool):

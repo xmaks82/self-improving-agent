@@ -97,6 +97,30 @@ class RunCommandTool(BaseTool):
         self.sandbox_mode = sandbox_mode
         self.security_validator = BashSecurityValidator(strict_mode=sandbox_mode)
 
+    # Chars that shlex(punctuation_chars=True) tokenizes as operators.
+    _PUNCT = set("|&;<>()")
+
+    def _split_segments(self, command: str) -> list[list[str]]:
+        """Split a command into sub-command token lists at shell operators
+        (;, &&, ||, |, &), honoring quotes. Rejects redirection and subshells
+        in sandbox mode (raises ValueError). Each segment's head is validated
+        separately so a chained `rm` can't ride in behind an allowed `git`.
+        """
+        lex = shlex.shlex(command, posix=True, punctuation_chars=True)
+        lex.whitespace_split = True
+        tokens = list(lex)  # raises ValueError on unbalanced quotes
+        segments: list[list[str]] = [[]]
+        for t in tokens:
+            if t and all(ch in self._PUNCT for ch in t):  # an operator token
+                if any(ch in "<>" for ch in t):
+                    raise ValueError(f"redirection not allowed in sandbox: '{t}'")
+                if "(" in t or ")" in t:
+                    raise ValueError("subshell '()' not allowed in sandbox")
+                segments.append([])  # ; && || | &  → new sub-command
+            else:
+                segments[-1].append(t)
+        return [s for s in segments if s]
+
     def _is_command_allowed(self, command: str) -> tuple[bool, str]:
         """
         Check if command is allowed.
@@ -107,30 +131,21 @@ class RunCommandTool(BaseTool):
         if not self.sandbox_mode:
             return True, ""
 
-        # Parse command
         try:
-            parts = shlex.split(command)
-        except ValueError:
-            return False, "Invalid command syntax"
+            segments = self._split_segments(command)
+        except ValueError as e:
+            return False, f"Command rejected: {e}"
 
-        if not parts:
+        if not segments:
             return False, "Empty command"
 
-        # Get base command (handle paths like /usr/bin/python)
-        base_cmd = Path(parts[0]).name
-
-        # Check dangerous commands
-        if base_cmd in self.DANGEROUS_COMMANDS:
-            return False, f"Command not allowed: {base_cmd}"
-
-        # Check if command is in allowed list
-        if base_cmd not in self.allowed_commands:
-            return False, f"Command not in allowed list: {base_cmd}"
-
-        # Check for dangerous patterns in arguments
-        for part in parts[1:]:
-            if part.startswith(">") or part in ["|", "&&", "||", ";"]:
-                logger.warning("Shell operator detected in command: %s (operator: %s)", command, part)
+        # Validate EVERY sub-command head (chaining can't smuggle a denied cmd).
+        for seg in segments:
+            base_cmd = Path(seg[0]).name
+            if base_cmd in self.DANGEROUS_COMMANDS:
+                return False, f"Command not allowed: {base_cmd}"
+            if base_cmd not in self.allowed_commands:
+                return False, f"Command not in allowed list: {base_cmd}"
 
         return True, ""
 

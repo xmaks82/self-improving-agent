@@ -15,6 +15,7 @@ class FileReadRecord:
     is_partial: bool = False
     offset: int | None = None
     limit: int | None = None
+    mtime: float | None = None  # disk mtime at read time (for stale-detection)
 
 
 class FileReadStateTracker:
@@ -36,13 +37,19 @@ class FileReadStateTracker:
         offset: int | None = None,
         limit: int | None = None,
     ):
-        """Record that a file was read."""
-        resolved = str(Path(path).resolve())
+        """Record that a file was read (captures disk mtime for stale-detection)."""
+        p = Path(path).resolve()
+        resolved = str(p)
+        try:
+            mtime = p.stat().st_mtime
+        except OSError:
+            mtime = None
         self._reads[resolved] = FileReadRecord(
             timestamp=time.time(),
             is_partial=offset is not None or limit is not None,
             offset=offset,
             limit=limit,
+            mtime=mtime,
         )
 
     def record_write(self, path: str):
@@ -64,6 +71,19 @@ class FileReadStateTracker:
         if read_record is None or write_time is None:
             return False
         return write_time > read_record.timestamp
+
+    def disk_changed_since_read(self, path: str) -> bool:
+        """True if the file on disk was changed EXTERNALLY since we read it
+        (current mtime differs from the mtime captured at read). Guards against
+        silently overwriting edits made by another process/user."""
+        p = Path(path).resolve()
+        rec = self._reads.get(str(p))
+        if rec is None or rec.mtime is None:
+            return False  # never read / no baseline → read-before-write rule covers it
+        try:
+            return p.stat().st_mtime != rec.mtime
+        except OSError:
+            return False
 
     def clear(self):
         """Clear all tracking state."""

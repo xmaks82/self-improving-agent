@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from .base import BaseTool, ToolResult
-from .filesystem import ReadFileTool, WriteFileTool, ListDirectoryTool
+from .filesystem import ReadFileTool, WriteFileTool, EditFileTool, ListDirectoryTool
 from .shell import RunCommandTool
 from .git import GitStatusTool, GitDiffTool, GitCommitTool
 from .search import SearchFilesTool, GrepTool
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Tools that are always loaded
 CORE_TOOL_NAMES = {
-    "read_file", "write_file", "list_directory",
+    "read_file", "write_file", "edit_file", "list_directory",
     "run_command", "git_status", "git_diff", "git_commit",
     "search_files", "grep",
 }
@@ -70,6 +70,7 @@ class ToolRegistry:
         # Filesystem tools (with shared file state tracker)
         self.register(ReadFileTool(base_path=base, file_state=self.file_state))
         self.register(WriteFileTool(base_path=base, file_state=self.file_state))
+        self.register(EditFileTool(base_path=base, file_state=self.file_state))
         self.register(ListDirectoryTool(base_path=base))
 
         # Shell tool
