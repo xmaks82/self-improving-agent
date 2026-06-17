@@ -28,8 +28,12 @@ New version goes live  →  feedback metrics tracked
 If it underperforms (≥60% negative over ≥4 samples) → auto-rollback to parent
 ```
 
-## Highlights (v1.5.0)
+## Highlights (v1.5.1)
 
+- **Honesty & epistemics** — a statically-composed (non-evolving) prompt section:
+  no fabrication of file paths, symbols, API signatures or command output; verify
+  by doing (read the file, run the command) rather than guessing; truthful outcome
+  reporting; own mistakes plainly without self-abasement.
 - **Real agentic loop** — `think → tool_use → tool_result → repeat`, bounded
   iterations, loop-detection, tool-errors fed back for recovery, real token
   accounting. Output is **token-streamed during tool-use** (Anthropic +

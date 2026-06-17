@@ -6,6 +6,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-06-17
+
+### Added
+- **Honesty & epistemics prompt section** (`composer.get_honesty_section`,
+  statically composed / non-evolving): no fabrication of paths, symbols, API
+  signatures or command output; verify-by-doing over guessing; truthful outcome
+  reporting; own mistakes without self-abasement.
+
 ## [1.5.0] - 2026-06-15
 
 ### Added — the agent now actually executes tools (previously a facade)
