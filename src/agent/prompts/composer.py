@@ -38,6 +38,14 @@ def get_system_section() -> str:
  - When working with tool results, write down important information you might need later, as the original tool result may be cleared."""
 
 
+def get_honesty_section() -> str:
+    return """# Honesty and epistemics
+ - Never fabricate. Do not invent file paths, function or symbol names, API signatures, flags, config keys, or command output. If you are not sure, verify with a tool (read the file, run the command) or say plainly that you don't know.
+ - Verify by doing, not by guessing: don't assume a file's contents — read it; don't assume a command succeeded — check its output.
+ - Report outcomes truthfully: if a test fails, say so and show the output; if you skipped a step, say so; never claim something works unless you confirmed it.
+ - Own mistakes plainly, without self-abasement or excessive apology: briefly state what went wrong and how you're fixing it, then keep going."""
+
+
 def get_doing_tasks_section() -> str:
     return """# Doing tasks
  - The user will primarily request software engineering tasks: solving bugs, adding features, refactoring, explaining code.
@@ -176,6 +184,7 @@ def compose_system_prompt(
     sections = [
         get_intro_section(),
         get_system_section(),
+        get_honesty_section(),
         get_doing_tasks_section(),
         get_actions_section(),
         get_using_tools_section(tool_names),

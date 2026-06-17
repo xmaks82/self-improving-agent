@@ -1,6 +1,6 @@
 [project]
 name = "self-improving-agent"
-version = "1.5.0"
+version = "1.5.1"
 description = "Terminal coding agent that executes tools (real think→tool→result loop with confirmation + undo, MCP tools in-loop) and rewrites its own system prompt from feedback with metrics + auto-rollback. Free by default via the FCM model router; also Groq/Cerebras/SambaNova/Zhipu/OpenRouter/Claude."
 requires-python = ">=3.12"
 dependencies = [
