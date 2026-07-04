@@ -52,6 +52,7 @@ class FeedbackDetector:
         # Russian
         r"слишком (длинн|коротк|сложн|прост|многословн)",
         r"не (понял|понятно|то|так|верно|правильно)",
+        r"не (работает|помогло|получилось|сработало)",  # negated success verbs
         r"(плохо|ужасно|отвратительно|некачественно)",
         r"можно (короче|проще|понятнее|лучше|яснее)",
         r"это (бред|чушь|ерунда|неправда)",
@@ -80,21 +81,23 @@ class FeedbackDetector:
         r"таблиц|table|запрос|query|скрипт|script|конфиг|config)\b"
     )
 
-    # Positive feedback patterns
+    # Positive feedback patterns. Word boundaries (\b) so short words don't match
+    # inside longer ones ("ок" in "около", "понял" fine); success verbs are guarded
+    # against a preceding negation so "не работает" is NOT read as positive.
     POSITIVE_PATTERNS = [
         # Russian
         r"(спасибо|благодар)",
-        r"(отлично|супер|круто|класс|здорово|прекрасно)",
-        r"(помогло|работает|получилось|понял)",
+        r"\b(отлично|супер|круто|класс|здорово|прекрасно)\b",
+        r"(?<!не )\b(помогло|работает|получилось|сработало|понял)\b",
         r"то что нужно",
-        r"(идеально|perfect|великолепно)",
-        r"(хорошо|норм|нормально|ок|okay)",
+        r"\b(идеально|perfect|великолепно)\b",
+        r"\b(хорошо|нормально|норм|ок|okay)\b",
         # English
-        r"(thanks|thank you)",
-        r"(great|excellent|awesome|perfect|wonderful)",
-        r"(helped|works|worked|got it)",
+        r"\b(thanks|thank you)\b",
+        r"\b(great|excellent|awesome|perfect|wonderful)\b",
+        r"(?<!not )\b(helped|works|worked|got it)\b",
         r"(exactly|just) what I (needed|wanted)",
-        r"(good|nice|well done)",
+        r"\b(good|nice|well done)\b",
     ]
 
     # Category keywords for classification

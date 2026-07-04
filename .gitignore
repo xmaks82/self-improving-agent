@@ -36,7 +36,6 @@ Thumbs.db
 .coverage
 htmlcov/
 claw-code-main.zip
-.github/
 src.zip
 
 # private agent memory — never publish

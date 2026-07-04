@@ -48,6 +48,8 @@ class AnalyzerAgent:
     Supports any LLM provider via BaseLLMClient abstraction.
     """
 
+    MAX_ANALYZE_ITERATIONS = 15  # bound the agentic loop (was unbounded while True)
+
     TOOLS = [
         {
             "name": "search_logs",
@@ -228,8 +230,10 @@ Focus on:
         analysis_result = None
         raw_analysis = ""
 
-        # Agentic loop using unified client interface
-        while True:
+        # Agentic loop using unified client interface. Bounded — a model that
+        # keeps calling search tools without ever calling submit_analysis would
+        # otherwise spin forever burning tokens (was `while True`).
+        for _ in range(self.MAX_ANALYZE_ITERATIONS):
             response = self.client.chat_with_tools(
                 messages=messages,
                 tools=self.TOOLS,
@@ -265,6 +269,10 @@ Focus on:
                 if not analysis_result:
                     analysis_result = self._create_fallback_result(feedback, raw_analysis)
                 break
+
+        # Loop exhausted without submit_analysis → fall back rather than return None.
+        if analysis_result is None:
+            analysis_result = self._create_fallback_result(feedback, raw_analysis)
 
         return analysis_result
 

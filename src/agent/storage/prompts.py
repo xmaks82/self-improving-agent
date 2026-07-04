@@ -96,7 +96,11 @@ class PromptManager:
         """
         agent_path = self.base_path / agent_name
         current_version = self.current_version(agent_name)
-        new_version = current_version + 1
+        # Monotonic: never reuse a number. After a rollback current_version()
+        # drops (e.g. 4→3), so `current+1` would mint a SECOND v004 and every
+        # glob(f"v004_*") then picks an arbitrary one — corrupting rollback and
+        # metric attribution. Base the new number on the highest ever created.
+        new_version = max(self._max_version_number(agent_name), current_version) + 1
 
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
         filename = f"v{new_version:03d}_{timestamp}.yaml"
@@ -182,6 +186,22 @@ class PromptManager:
     MIN_FEEDBACK_SAMPLES = 4   # don't judge a version on too little data
     MAX_NEG_RATE = 0.6         # ≥60% negative over the window → revert
 
+    def _max_version_number(self, agent_name: str) -> int:
+        """Highest version number that has ever existed on disk (monotonic base
+        for create_version, so numbers are never reused after a rollback)."""
+        agent_path = self.base_path / agent_name
+        if not agent_path.exists():
+            return 0
+        best = 0
+        for p in agent_path.glob("v*.yaml"):
+            if p.name == "current.yaml":
+                continue
+            try:
+                best = max(best, int(p.name[1:4]))
+            except (ValueError, IndexError):
+                continue
+        return best
+
     def _current_version_file(self, agent_name: str) -> Optional[Path]:
         """Resolve the real version file behind current.yaml (symlink OR copy)."""
         cur = self.base_path / agent_name / "current.yaml"
@@ -218,8 +238,17 @@ class PromptManager:
         """Revert to the parent version if the current one underperforms
         (≥MAX_NEG_RATE negative over ≥MIN_FEEDBACK_SAMPLES). Returns rollback
         info or None. This is the missing 'degradation protection'."""
+        # Read metrics from the REAL current version file, not current.yaml:
+        # under the copy fallback (Windows) current.yaml is a stale snapshot with
+        # zero counts, while record_feedback writes the vNNN file — so reading
+        # current.yaml made total<MIN_FEEDBACK_SAMPLES always → rollback never
+        # fired. _current_version_file resolves the actual file in both modes.
+        fpath = self._current_version_file(agent_name)
+        if not fpath or not fpath.exists():
+            return None
         try:
-            data = self.get_version_data(agent_name)
+            with open(fpath, encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
         except Exception:
             return None
         parent = data.get("parent_version")

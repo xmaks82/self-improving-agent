@@ -42,3 +42,18 @@ def test_check_api_keys_covers_openrouter(monkeypatch):
 def test_anthropic_stream_is_async_generator():
     """Main agent expects async iteration over provider streams."""
     assert inspect.isasyncgenfunction(AnthropicClient.stream)
+
+
+def test_default_base_path_is_derived_not_hardcoded():
+    """AGENT_BASE_PATH default must be DERIVED from the code location (repo root
+    that ships data/prompts), not the author's hard-coded /var/www/agent — a
+    fresh clone must resolve data/ locally (regression 2026-07-04). This holds
+    even when the repo happens to live at /var/www/agent."""
+    import os
+    from pathlib import Path
+    import agent.config as cfg
+    os.environ.pop("AGENT_BASE_PATH", None)
+    b = cfg._default_base_path()
+    repo_root = Path(cfg.__file__).resolve().parents[2]
+    assert b == repo_root                     # derived from where the code is
+    assert (b / "data" / "prompts").is_dir()

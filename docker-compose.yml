@@ -13,10 +13,10 @@ services:
       - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
       # Optional: for Anthropic models and LLM fallback in feedback detection
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      # Model configuration
-      - DEFAULT_MODEL=${DEFAULT_MODEL:-llama-4-maverick}
-      - ANALYZER_MODEL=${ANALYZER_MODEL:-llama-3.3-70b}
-      - VERSIONER_MODEL=${VERSIONER_MODEL:-llama-3.3-70b}
+      # Model configuration (match the code default; override in .env)
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-fcm}
+      - ANALYZER_MODEL=${ANALYZER_MODEL:-fcm}
+      - VERSIONER_MODEL=${VERSIONER_MODEL:-fcm}
       - FEEDBACK_MODEL=${FEEDBACK_MODEL:-llama-4-scout}
       # Thresholds
       - FEEDBACK_CONFIDENCE_THRESHOLD=${FEEDBACK_CONFIDENCE_THRESHOLD:-0.8}

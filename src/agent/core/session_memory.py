@@ -58,20 +58,21 @@ class SessionMemoryManager:
     async def extract(self, messages: list[dict]) -> Optional[str]:
         """Extract key notes from conversation (runs in background)."""
         async with self._lock:
-            current = self.memory_path.read_text() if self.memory_path.exists() else ""
+            current = self.memory_path.read_text(encoding="utf-8") if self.memory_path.exists() else ""
             recent = "\n\n".join(
                 f"{m['role'].title()}: {m.get('content', '')[:800]}"
                 for m in messages[-12:]
             )
             try:
-                resp = self.client.chat(
+                resp = await asyncio.to_thread(
+                    self.client.chat,
                     messages=[{"role": "user", "content": UPDATE_PROMPT.format(
                         current_memory=current or "(empty)", recent_messages=recent)}],
                     system="You are a precise note-taker.",
                     max_tokens=2048,
                 )
                 updated = resp.content.strip()
-                self.memory_path.write_text(updated)
+                self.memory_path.write_text(updated, encoding="utf-8")
                 self._tokens_at_last = sum(len(m.get("content", "")) for m in messages) // 4
                 self._tool_calls = 0
                 return updated
@@ -80,4 +81,4 @@ class SessionMemoryManager:
                 return None
 
     def get_content(self) -> str:
-        return self.memory_path.read_text() if self.memory_path.exists() else ""
+        return self.memory_path.read_text(encoding="utf-8") if self.memory_path.exists() else ""

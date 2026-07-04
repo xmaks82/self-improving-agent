@@ -73,10 +73,28 @@ class EmbeddingsConfig:
         )
 
 
+def _default_base_path() -> Path:
+    """Where data/ (prompts, sessions, memory) lives.
+
+    AGENT_BASE_PATH wins. Otherwise prefer the repo root that ships data/prompts
+    (so a fresh clone works out of the box), falling back to ~/.agent. The old
+    hard default /var/www/agent only ever existed on the author's server and made
+    every other machine crash on first message with FileNotFoundError.
+    """
+    env = os.getenv("AGENT_BASE_PATH")
+    if env:
+        return Path(env)
+    # config.py = <repo>/src/agent/config.py → parents[2] is the repo root
+    repo_root = Path(__file__).resolve().parents[2]
+    if (repo_root / "data" / "prompts").is_dir():
+        return repo_root
+    return Path.home() / ".agent"
+
+
 @dataclass
 class PathConfig:
     """Path configuration."""
-    base: Path = field(default_factory=lambda: Path(os.getenv("AGENT_BASE_PATH", "/var/www/agent")))
+    base: Path = field(default_factory=_default_base_path)
 
     @property
     def data(self) -> Path:

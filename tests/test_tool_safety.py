@@ -33,6 +33,46 @@ def test_shell_blocks_redirect_and_subshell(tmp_path):
     assert _allowed("echo $(rm x)", tmp_path) is False             # subshell
 
 
+def test_shell_blocks_newline_smuggling(tmp_path):
+    # newline / CR are command separators — a denied command must not ride in
+    # behind an allowed head on the next line (regression: P0 2026-07-04).
+    assert _allowed("git status\nrm -rf foo", tmp_path) is False
+    assert _allowed("ls\n\nrm -rf ~", tmp_path) is False
+    assert _allowed("printf x\rrm -rf y", tmp_path) is False
+
+
+def test_shell_blocks_find_exec_and_delete(tmp_path):
+    assert _allowed("find . -type f -exec rm {} +", tmp_path) is False
+    assert _allowed("find . -name '*.py' -delete", tmp_path) is False
+    assert _allowed("find . -name '*.py'", tmp_path) is True        # plain find ok
+
+
+def test_shell_env_not_in_allowlist(tmp_path):
+    # env dumps secrets + is a command launcher → removed from the allow-list
+    assert _allowed("env", tmp_path) is False
+    assert _allowed("env rm -rf /tmp", tmp_path) is False
+
+
+def test_grep_search_respect_sandbox(tmp_path):
+    from agent.tools.search import GrepTool, SearchFilesTool
+    outside = tmp_path.parent / "outside_sandbox_secret"
+    grep = GrepTool(default_path=tmp_path, base_path=tmp_path)
+    files = SearchFilesTool(default_path=tmp_path, base_path=tmp_path)
+    r1 = asyncio.run(grep.execute(pattern="x", path=str(outside)))
+    r2 = asyncio.run(files.execute(pattern="*", path=str(outside)))
+    assert not r1.success and "sandbox" in (r1.error or "").lower()
+    assert not r2.success and "sandbox" in (r2.error or "").lower()
+
+
+def test_confirm_tool_fails_closed_headless(tmp_path):
+    """No confirmer + no opt-in → CONFIRM tool refuses (does not run blind)."""
+    from agent.tools.registry import ToolRegistry
+    reg = ToolRegistry(working_dir=tmp_path, sandbox_mode=True)  # auto_approve=False
+    r = asyncio.run(reg.execute("write_file", path="x.txt", content="data"))
+    assert not r.success and "confirm" in (r.error or "").lower()
+    assert not (tmp_path / "x.txt").exists()
+
+
 # ---------- EditFileTool ----------
 
 def test_edit_requires_read_then_works(tmp_path):
@@ -106,7 +146,10 @@ def test_undo_restores_created_file(tmp_path):
     from agent.approval.undo import UndoManager
 
     um = UndoManager(history_path=tmp_path / "undo" / "h.json")
-    reg = ToolRegistry(working_dir=tmp_path, sandbox_mode=True, undo_manager=um)
+    # auto_approve: this unit exercises undo headlessly; write_file is CONFIRM
+    # and now fail-closes without a confirmer unless explicitly opted in.
+    reg = ToolRegistry(working_dir=tmp_path, sandbox_mode=True, undo_manager=um,
+                       auto_approve=True)
 
     r = asyncio.run(reg.execute("write_file", path="n.txt", content="created"))
     assert r.success and (tmp_path / "n.txt").read_text(encoding="utf-8") == "created"

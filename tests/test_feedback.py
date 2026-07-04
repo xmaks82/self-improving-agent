@@ -31,3 +31,28 @@ def test_bare_imperative_recorded_but_no_trigger():
     d = FeedbackDetector(client=None)
     fb = d.detect("переделай")  # no task signal, no LLM client
     assert fb and fb.type == "negative" and fb.should_trigger_improvement is False
+
+
+def test_negated_success_is_not_positive():
+    """'не работает' must NOT be classified as positive (regression 2026-07-04)."""
+    from agent.core.feedback import FeedbackDetector
+    d = FeedbackDetector()
+    fb = d.detect("не работает")
+    assert fb is None or fb.type == "negative"
+    fb2 = d.detect("это не помогло")
+    assert fb2 is None or fb2.type == "negative"
+
+
+def test_short_word_boundaries():
+    """'ок' inside 'около' must not trigger positive."""
+    from agent.core.feedback import FeedbackDetector
+    d = FeedbackDetector()
+    fb = d.detect("около пяти файлов в проекте")
+    assert fb is None or fb.type != "positive"
+
+
+def test_genuine_positive_still_detected():
+    from agent.core.feedback import FeedbackDetector
+    d = FeedbackDetector()
+    assert d.detect("спасибо, работает").type == "positive"
+    assert d.detect("отлично").type == "positive"

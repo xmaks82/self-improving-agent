@@ -53,15 +53,22 @@ class RunCommandTool(BaseTool):
         "required": ["command"],
     }
 
-    # Commands that are always allowed
+    # Commands that are always allowed.
+    # NOTE: `env`/`printenv` intentionally NOT here — they dump all environment
+    # variables (incl. API keys) into the tool result → LLM context/logs, and
+    # `env CMD` is a launcher that bypasses head-of-segment checks.
     SAFE_COMMANDS = {
         "ls", "cat", "head", "tail", "grep", "find", "wc",
-        "echo", "pwd", "date", "whoami", "env", "which",
+        "echo", "pwd", "date", "whoami", "which",
         "python", "python3", "pip", "pip3",
         "node", "npm", "npx",
         "git",
         "make", "cargo", "go",
     }
+
+    # `find` primaries that execute arbitrary commands or mutate the filesystem —
+    # they turn an allowed `find` head into an RCE/delete sink one segment deep.
+    _FIND_DANGEROUS = ("-exec", "-execdir", "-ok", "-okdir", "-delete", "-fprintf")
 
     # Commands that are never allowed
     DANGEROUS_COMMANDS = {
@@ -106,6 +113,11 @@ class RunCommandTool(BaseTool):
         in sandbox mode (raises ValueError). Each segment's head is validated
         separately so a chained `rm` can't ride in behind an allowed `git`.
         """
+        # Newline / carriage return are shell command separators, but shlex
+        # treats them as plain whitespace → a segment head check only sees the
+        # first line and `cmd1\nrm -rf ~` smuggled `rm` past the allow-list.
+        # Normalise them to ';' so every line becomes its own validated segment.
+        command = command.replace("\r\n", ";").replace("\n", ";").replace("\r", ";")
         lex = shlex.shlex(command, posix=True, punctuation_chars=True)
         lex.whitespace_split = True
         tokens = list(lex)  # raises ValueError on unbalanced quotes
@@ -148,6 +160,15 @@ class RunCommandTool(BaseTool):
                 return False, f"Command not allowed: {base_cmd}"
             if self.sandbox_mode and base_cmd not in self.allowed_commands:
                 return False, f"Command not in allowed list: {base_cmd}"
+            # `find ... -exec/-delete` executes/deletes regardless of the head
+            # being an allowed `find`. Block those primaries in every mode.
+            if base_cmd == "find" and any(
+                a in self._FIND_DANGEROUS for a in seg[1:]
+            ):
+                return False, (
+                    "find with -exec/-execdir/-ok/-delete/-fprintf is not allowed "
+                    "(arbitrary command execution / deletion)"
+                )
 
         return True, ""
 

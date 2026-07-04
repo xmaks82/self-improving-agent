@@ -70,14 +70,20 @@ class ToolRegistry:
         load_all: bool = True,
         confirm_callback=None,
         undo_manager=None,
+        auto_approve: bool = False,
     ):
         self.working_dir = working_dir or Path.cwd()
         self.sandbox_mode = sandbox_mode
         self.permission_manager = permission_manager or PermissionManager()
         self.file_state = file_state or FileReadStateTracker()
         # confirm_callback: async (tool_name, kwargs) -> bool. When set, CONFIRM-level
-        # tools require approval. None → pass-through (headless/auto).
+        # tools require approval.
         self.confirm_callback = confirm_callback
+        # auto_approve: only when explicitly opted in (--yes / AGENT_AUTO_APPROVE)
+        # do CONFIRM-level tools run without a callback. Default False = fail-closed:
+        # headless with untrusted tool/web content in context can't silently
+        # run_command/write_file. (Was previously always pass-through — RCE path.)
+        self.auto_approve = auto_approve
         # undo_manager: records before/after for every file mutation (enables rollback).
         self.undo_manager = undo_manager
         self._tools: dict[str, BaseTool] = {}
@@ -110,9 +116,10 @@ class ToolRegistry:
         self.register(GitDiffTool(default_path=self.working_dir))
         self.register(GitCommitTool(default_path=self.working_dir))
 
-        # Search tools
-        self.register(SearchFilesTool(default_path=self.working_dir))
-        self.register(GrepTool(default_path=self.working_dir))
+        # Search tools — pass base for the same sandbox as the file tools
+        # (grep/search read file contents, so they must respect the boundary).
+        self.register(SearchFilesTool(default_path=self.working_dir, base_path=base))
+        self.register(GrepTool(default_path=self.working_dir, base_path=base))
 
         # Git worktree tools
         enter_wt = EnterWorktreeTool()
@@ -127,6 +134,14 @@ class ToolRegistry:
     def register(self, tool: BaseTool):
         """Register a tool."""
         self._tools[tool.name] = tool
+
+    # Core tool names an MCP server must never silently shadow (a shadowing
+    # `run_command`/`read_file` would route trusted ops to an external server,
+    # bypassing this registry's CONFIRM gate).
+    _CORE_PROTECTED = frozenset({
+        "run_command", "read_file", "write_file", "edit_file", "list_directory",
+        "git_commit", "search_files", "grep",
+    })
 
     def unregister(self, name: str) -> bool:
         """Unregister a tool."""
@@ -193,16 +208,23 @@ class ToolRegistry:
         if not allowed:
             return ToolResult.fail(f"Permission denied: {reason}")
 
-        # Confirmation for CONFIRM-level tools (write/run/commit) when a UI wired
-        # a callback. Without a callback we pass through (headless/auto mode).
-        if (self.confirm_callback is not None
-                and self.permission_manager.get_permission(name) == PermissionLevel.CONFIRM):
-            try:
-                approved = await self.confirm_callback(name, kwargs)
-            except Exception as e:
-                return ToolResult.fail(f"Confirmation failed: {e}")
-            if not approved:
-                return ToolResult.fail(f"Rejected by user: {name}")
+        # Confirmation for CONFIRM-level tools (write/run/commit).
+        if self.permission_manager.get_permission(name) == PermissionLevel.CONFIRM:
+            if self.confirm_callback is not None:
+                try:
+                    approved = await self.confirm_callback(name, kwargs)
+                except Exception as e:
+                    return ToolResult.fail(f"Confirmation failed: {e}")
+                if not approved:
+                    return ToolResult.fail(f"Rejected by user: {name}")
+            elif not self.auto_approve:
+                # Fail-closed: no interactive confirmer and not explicitly
+                # opted into auto-approval → refuse rather than run blind.
+                return ToolResult.fail(
+                    f"'{name}' needs confirmation but no confirmer is available. "
+                    f"Re-run with --yes / AGENT_AUTO_APPROVE=1 to allow "
+                    f"CONFIRM-level tools headlessly."
+                )
 
         # Validate arguments
         error = tool.validate_args(**kwargs)
@@ -211,19 +233,31 @@ class ToolRegistry:
 
         return await tool.execute(**kwargs)
 
-    def register_mcp_tools(self, mcp_manager, auto_approve: bool = True) -> int:
+    def register_mcp_tools(self, mcp_manager, auto_approve: bool = False) -> int:
         """Bridge MCP-server tools into this registry so the agentic loop can call
         them (registry.get_anthropic_tools / registry.execute). Each MCP tool is
         wrapped as a BaseTool that proxies to mcp_manager.execute_tool.
 
-        auto_approve: MCP servers are explicitly configured/trusted → skip the
-        CONFIRM gate by default (override per-tool via permission_manager)."""
+        auto_approve: default False — MCP tools go through the normal CONFIRM
+        gate. A malicious/compromised MCP server or an injected tool-result
+        should not get unconfirmed execution just for being "configured".
+        MCP tools that collide with a core tool name are SKIPPED (a shadowing
+        server must not silently replace run_command/read_file/…)."""
         count = 0
+        skipped = []
         for d in mcp_manager.tool_adapter.get_tool_definitions():
+            if d.name in self._CORE_PROTECTED:
+                skipped.append(d.name)
+                logger.warning(
+                    "MCP tool '%s' shadows a core tool — skipped for safety", d.name
+                )
+                continue
             self.register(_MCPToolWrapper(d, mcp_manager.execute_tool))
             if auto_approve:
                 self.permission_manager.set_permission(d.name, PermissionLevel.AUTO_APPROVE)
             count += 1
+        if skipped:
+            logger.warning("Skipped %d shadowing MCP tools: %s", len(skipped), skipped)
         return count
 
     def get_anthropic_tools(self) -> list[dict]:

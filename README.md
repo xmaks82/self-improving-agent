@@ -28,7 +28,7 @@ New version goes live  →  feedback metrics tracked
 If it underperforms (≥60% negative over ≥4 samples) → auto-rollback to parent
 ```
 
-## Highlights (v1.5.1)
+## Highlights (v1.6.0)
 
 - **Honesty & epistemics** — a statically-composed (non-evolving) prompt section:
   no fabrication of file paths, symbols, API signatures or command output; verify
@@ -111,7 +111,7 @@ DEFAULT_MODEL=fcm                        # default; e.g. llama-3.3-70b, claude-h
 
 # Tuning
 AGENT_MAX_TOOL_ITERATIONS=25
-FACT_DISTILL=1
+AGENT_BASE_PATH=/path/to/agent          # data/ location (default: repo root)
 ```
 
 ## Key CLI Commands

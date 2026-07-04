@@ -42,12 +42,12 @@ class TeamMemorySync:
             labels = ", ".join(s.label for s in secrets)
             return False, f"Blocked: content contains potential secrets ({labels})"
         path = self._repo_dir() / f"{key}.md"
-        path.write_text(content)
+        path.write_text(content, encoding="utf-8")
         return True, f"Saved team memory: {key}"
 
     def load(self, key: str) -> Optional[str]:
         path = self._repo_dir() / f"{key}.md"
-        return path.read_text() if path.exists() else None
+        return path.read_text(encoding="utf-8") if path.exists() else None
 
     def list_entries(self) -> list[str]:
         return sorted(p.stem for p in self._repo_dir().glob("*.md"))

@@ -29,6 +29,11 @@ if TYPE_CHECKING:
 MAX_TOOL_ITERATIONS = int(os.environ.get("AGENT_MAX_TOOL_ITERATIONS", "25"))
 # Cap a single tool's output fed back to the model (protects context window).
 MAX_TOOL_OUTPUT = int(os.environ.get("AGENT_MAX_TOOL_OUTPUT", "20000"))
+# Loop guard: abort if the SAME tool-call signature recurs this many times
+# within the sliding window (catches A,B,A,B oscillation; tolerates 1-2 legit
+# repeats like re-running tests / polling git status).
+LOOP_GUARD_WINDOW = int(os.environ.get("AGENT_LOOP_GUARD_WINDOW", "6"))
+LOOP_GUARD_MAX_REPEATS = int(os.environ.get("AGENT_LOOP_GUARD_MAX_REPEATS", "3"))
 
 
 class MainAgent(BaseAgent):
@@ -73,7 +78,18 @@ class MainAgent(BaseAgent):
         self.pipeline = pipeline
         self.fork_manager = pipeline.fork_manager if pipeline else ForkManager()
         self._improvement_task: Optional[asyncio.Task] = None
+        # Strong refs to fire-and-forget tasks: the event loop only keeps a weak
+        # ref, so without this a background task can be GC'd mid-flight and its
+        # work (e.g. session-memory extraction) silently vanishes.
+        self._background_tasks: set[asyncio.Task] = set()
         self._created_at = datetime.now(timezone.utc).isoformat() + "Z"
+
+    def _spawn_background(self, coro) -> asyncio.Task:
+        """Schedule a background task and hold a strong ref until it finishes."""
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return task
 
     @property
     def model(self) -> str:
@@ -226,10 +242,11 @@ class MainAgent(BaseAgent):
             "content": message,
         })
 
-        # Detect feedback (if detector available)
+        # Detect feedback (if detector available). detect() may make a blocking
+        # LLM call (short-message fallback), so offload it off the event loop.
         feedback = None
         if self.feedback_detector:
-            feedback = self.feedback_detector.detect(message)
+            feedback = await asyncio.to_thread(self.feedback_detector.detect, message)
 
         # ---- Generate the reply ----
         # If a tool registry is wired, run the real agentic loop
@@ -244,13 +261,13 @@ class MainAgent(BaseAgent):
 
         if use_tools:
             from ..clients.base import ToolResult as _ToolResultMsg
+            from ..clients.exceptions import RateLimitError as _RateLimitError
 
             tools = registry.get_anthropic_tools()
             # Working buffer carries tool_use/tool_result blocks for THIS turn only;
             # conversation_history stays string-content (compactor/save_session rely on that).
             work: list[dict] = list(self.conversation_history)
-            last_sig = None
-            repeat = 0
+            recent_sigs: list[tuple] = []  # sliding window of tool-call signatures
             hit_cap = True
 
             for _step in range(MAX_TOOL_ITERATIONS):
@@ -270,6 +287,10 @@ class MainAgent(BaseAgent):
                                     yield ev
                             else:
                                 resp = ev  # final LLMToolResponse
+                    except _RateLimitError:
+                        # Let the CLI switch to a fallback model. Nothing has
+                        # been committed to history yet, so re-raising is clean.
+                        raise
                     except Exception as e:
                         if resp is None and not streamed_text:
                             resp = None  # fall through to non-streaming retry
@@ -286,6 +307,8 @@ class MainAgent(BaseAgent):
                             self.client.chat_with_tools,
                             work, tools, system_prompt, 4096,
                         )
+                    except _RateLimitError:
+                        raise  # surface to CLI for fallback-model switch
                     except Exception as e:
                         msg = f"\n[model error: {e}]\n"
                         full_response += msg
@@ -305,12 +328,16 @@ class MainAgent(BaseAgent):
                     hit_cap = False
                     break
 
-                # Loop guard: the SAME tool-call set two steps in a row → abort
-                # before re-executing (protects tools with side effects).
+                # Loop guard: same tool-call signature seen too often within a
+                # sliding window → abort before re-executing (protects tools with
+                # side effects). A window (not strict-adjacent) catches A,B,A,B…
+                # oscillation; the threshold lets a couple of legit repeats
+                # (re-run pytest, poll git_status) through without a false abort.
                 sig = tuple((tc.name, repr(tc.input)) for tc in resp.tool_calls)
-                repeat = repeat + 1 if sig == last_sig else 0
-                last_sig = sig
-                if repeat >= 1:
+                recent_sigs.append(sig)
+                if len(recent_sigs) > LOOP_GUARD_WINDOW:
+                    recent_sigs.pop(0)
+                if recent_sigs.count(sig) >= LOOP_GUARD_MAX_REPEATS:
                     msg = "\n[aborting: repeated identical tool calls]\n"
                     full_response += msg
                     yield msg
@@ -391,7 +418,7 @@ class MainAgent(BaseAgent):
         # Background session memory extraction
         est_tokens = sum(len(m.get("content", "")) for m in self.conversation_history) // 4
         if self.session_memory.should_extract(est_tokens):
-            asyncio.create_task(self.session_memory.extract(self.conversation_history))
+            self._spawn_background(self.session_memory.extract(self.conversation_history))
 
         # Auto-verification after 3+ file edits
         if self.pipeline:
@@ -418,12 +445,17 @@ class MainAgent(BaseAgent):
             except Exception:
                 pass
 
-        # Trigger improvement if feedback detected
+        # Trigger improvement if feedback detected — but never run two improvement
+        # cycles at once (they read the same current_version and would create
+        # colliding version numbers / fight over rollback).
         if feedback and feedback.should_trigger_improvement:
-            yield "\n\n---\n_Feedback detected. Starting improvement analysis..._\n"
-            self._improvement_task = asyncio.create_task(
-                self._trigger_improvement(feedback)
-            )
+            if self._improvement_task is not None and not self._improvement_task.done():
+                yield "\n\n---\n_Feedback detected; improvement already in progress, skipping._\n"
+            else:
+                yield "\n\n---\n_Feedback detected. Starting improvement analysis..._\n"
+                self._improvement_task = self._spawn_background(
+                    self._trigger_improvement(feedback)
+                )
 
     async def _trigger_improvement(self, feedback: "Feedback"):
         """

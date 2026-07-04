@@ -6,6 +6,49 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-07-04
+
+Security + correctness hardening pass (full re-audit).
+
+### Security
+- **shell:** newline/CR are now command separators — `git status\nrm -rf ~`
+  can no longer smuggle a denied command past the per-segment allow-list.
+- **shell:** `find -exec/-execdir/-ok/-delete/-fprintf` blocked; `env` removed
+  from the allow-list (dumped secrets into context + acted as a launcher).
+- **tools:** `grep`/`search_files` now respect the same sandbox as the file
+  tools (were an unrestricted file-content read outside the working dir).
+- **registry:** CONFIRM-level tools **fail-closed** without a confirmer unless
+  `--yes`/`AGENT_AUTO_APPROVE=1`; MCP tools default to `auto_approve=False` and
+  are refused if they shadow a core tool name.
+- **versioner:** a prompt failing validation can no longer be saved/activated
+  (self-poisoning bypass) — validation moved into the single persist point.
+
+### Fixed
+- **main_agent:** `RateLimitError` now surfaces so the CLI can switch to a
+  fallback model (was swallowed as `[model error]`); loop guard uses a sliding
+  window (catches A,B,A,B oscillation, tolerates legit repeats); background
+  tasks hold strong refs (no GC mid-flight); no two improvement cycles at once;
+  blocking LLM calls in fork/session-memory/compactor/feedback offloaded off the
+  event loop.
+- **prompts:** version numbers are monotonic after rollback (no duplicate
+  `vNNN`); `maybe_auto_rollback` reads the real current version file so
+  degradation protection works under the Windows copy fallback.
+- **feedback:** positive patterns use word boundaries and negation guards —
+  "не работает" is no longer classified as positive; "ок" no longer matches
+  inside "около".
+- **memory:** Cyrillic keyword search works (Unicode-aware `pylower` instead of
+  ASCII-only `LIKE`); UTF-8 encoding on session/team-memory file writes.
+- **versioner/analyzer:** bounded agentic loops (were `while True`).
+
+### DX
+- **config:** `AGENT_BASE_PATH` defaults to the repo root (or `~/.agent`), not
+  the author's `/var/www/agent` — a fresh clone runs without a crash.
+- **.env.example / docker-compose:** default to `fcm`, keep provider keys
+  commented so `cp .env.example .env` doesn't 401 on first message; Dockerfile
+  sets `AGENT_BASE_PATH=/app`.
+- **CI:** workflow is committed (`.github/` was in `.gitignore`, making the
+  badge a fiction); dropped the dead `FACT_DISTILL` env from the docs.
+
 ## [1.5.1] - 2026-06-17
 
 ### Added

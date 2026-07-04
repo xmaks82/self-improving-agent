@@ -121,6 +121,7 @@ class VersionerAgent:
     # Maximum prompt length in characters (roughly 4000 tokens)
     MAX_PROMPT_LENGTH = 16000
     MIN_PROMPT_LENGTH = 50
+    MAX_IMPROVE_ITERATIONS = 15  # bound the agentic loop (was unbounded while True)
 
     # Meta-agents that drive self-improvement — the versioner must NEVER rewrite
     # these (or itself), or it could poison its own machinery irreversibly.
@@ -216,8 +217,10 @@ Remember:
 
         new_version = None
 
-        # Agentic loop using unified client interface
-        while True:
+        # Agentic loop using unified client interface. Bounded — a weak model
+        # may keep calling tools without ever producing a valid version; without
+        # a cap that burned tokens forever (was `while True`).
+        for _ in range(self.MAX_IMPROVE_ITERATIONS):
             response = self.client.chat_with_tools(
                 messages=messages,
                 tools=self.TOOLS,
@@ -236,11 +239,20 @@ Remember:
                 messages.append(assistant_msg)
                 messages.extend(tool_msgs)
 
-                # Check if create_prompt_version was called
-                for tc in response.tool_calls:
-                    if tc.name == "create_prompt_version":
-                        new_version = await self._save_version(tc.input, analysis_result)
-                        break
+                # Save+activate ONLY if create_prompt_version passed validation
+                # (its tool_result is not an error). Otherwise loop so the model
+                # can fix the prompt — never persist an invalid/poisoned version.
+                for tc, res in zip(response.tool_calls, tool_results):
+                    if tc.name != "create_prompt_version":
+                        continue
+                    try:
+                        payload = json.loads(res.content)
+                    except Exception:
+                        payload = {}
+                    if isinstance(payload, dict) and payload.get("error"):
+                        continue  # validation/protection error already fed back
+                    new_version = await self._save_version(tc.input, analysis_result)
+                    break
 
                 if new_version:
                     break
@@ -251,6 +263,11 @@ Remember:
                     "The agent should use the create_prompt_version tool."
                 )
 
+        if new_version is None:
+            raise VersioningError(
+                f"Versioner produced no valid version in "
+                f"{self.MAX_IMPROVE_ITERATIONS} iterations."
+            )
         return new_version
 
     async def _execute_tools(self, tool_calls: list[ToolCall], target_agent: str) -> list[ToolResult]:
@@ -356,6 +373,20 @@ Remember:
         if agent_name in self.PROTECTED_AGENTS:
             raise ValueError(f"Refused to version protected meta-agent '{agent_name}'")
         new_prompt = input_data["new_prompt"]
+
+        # Validate here — the single point that actually persists+activates a
+        # version. Previously improve() called _save_version unconditionally even
+        # when _execute_tool had returned {"error": "Validation failed"}, so a
+        # prompt with injection markers / oversize could still become `current`
+        # (self-poisoning — the exact thing validation exists to prevent).
+        validation = await self._execute_tool(
+            "validate_prompt", {"prompt_content": new_prompt}, agent_name
+        )
+        if not validation.get("valid", False):
+            raise ValueError(
+                f"Refused to save invalid prompt: {validation.get('issues')}"
+            )
+
         changes_data = input_data.get("changes", [])
         rationale = input_data.get("rationale", "")
 

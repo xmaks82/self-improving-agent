@@ -114,7 +114,10 @@ class ForkManager:
                 "content": f"{FORK_BOILERPLATE}\n\nDirective: {directive}",
             })
 
-            response = client.chat(
+            # Offload the blocking LLM call so a "background" fork does not
+            # stall the whole event loop until generation finishes.
+            response = await asyncio.to_thread(
+                client.chat,
                 messages=messages,
                 system=system_prompt,
                 max_tokens=4096,

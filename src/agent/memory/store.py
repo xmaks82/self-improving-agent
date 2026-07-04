@@ -177,7 +177,11 @@ class MemoryStore:
         """
         await self.initialize()
 
-        sql = "SELECT * FROM memories WHERE content LIKE ?"
+        # SQLite LOWER()/LIKE are case-insensitive for ASCII only, so a lower-cased
+        # keyword like "комендант" would never match stored "Комендант" — the
+        # keyword half of hybrid search was dead for Cyrillic proper nouns. Register
+        # Python's Unicode-aware str.lower as pylower() and compare in lower case.
+        sql = "SELECT * FROM memories WHERE pylower(content) LIKE pylower(?)"
         params = [f"%{text}%"]
 
         if memory_type:
@@ -189,6 +193,9 @@ class MemoryStore:
 
         memories = []
         async with aiosqlite.connect(self.db_path) as db:
+            await db.create_function(
+                "pylower", 1, lambda s: s.lower() if s else s, deterministic=True
+            )
             db.row_factory = aiosqlite.Row
             async with db.execute(sql, params) as cursor:
                 async for row in cursor:

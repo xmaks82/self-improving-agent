@@ -7,6 +7,19 @@ from typing import Optional
 from .base import BaseTool, ToolResult
 
 
+def _enforce_sandbox(search_path: Path, base_path: Optional[Path]) -> None:
+    """Raise PermissionError if search_path escapes the sandbox base_path.
+
+    grep/search read file *contents*, so without this they were a way to
+    exfiltrate ~/.ssh, ~/.aws, /etc etc. past the file-tool sandbox.
+    """
+    if base_path is None:
+        return
+    resolved = search_path.resolve()
+    if not resolved.is_relative_to(base_path.resolve()):
+        raise PermissionError(f"Access denied (outside sandbox): {search_path}")
+
+
 class SearchFilesTool(BaseTool):
     """Search for files by name pattern."""
 
@@ -41,8 +54,9 @@ class SearchFilesTool(BaseTool):
         "required": ["pattern"],
     }
 
-    def __init__(self, default_path: Optional[Path] = None):
+    def __init__(self, default_path: Optional[Path] = None, base_path: Optional[Path] = None):
         self.default_path = default_path or Path.cwd()
+        self.base_path = base_path
 
     async def execute(
         self,
@@ -55,6 +69,11 @@ class SearchFilesTool(BaseTool):
     ) -> ToolResult:
         """Search for files."""
         search_path = Path(path) if path else self.default_path
+
+        try:
+            _enforce_sandbox(search_path, self.base_path)
+        except PermissionError as e:
+            return ToolResult.fail(str(e))
 
         if not search_path.exists():
             return ToolResult.fail(f"Path not found: {search_path}")
@@ -155,8 +174,9 @@ class GrepTool(BaseTool):
         "required": ["pattern"],
     }
 
-    def __init__(self, default_path: Optional[Path] = None):
+    def __init__(self, default_path: Optional[Path] = None, base_path: Optional[Path] = None):
         self.default_path = default_path or Path.cwd()
+        self.base_path = base_path
 
     async def execute(
         self,
@@ -173,6 +193,11 @@ class GrepTool(BaseTool):
     ) -> ToolResult:
         """Search content in files."""
         search_path = Path(path) if path else self.default_path
+
+        try:
+            _enforce_sandbox(search_path, self.base_path)
+        except PermissionError as e:
+            return ToolResult.fail(str(e))
 
         if not search_path.exists():
             return ToolResult.fail(f"Path not found: {search_path}")

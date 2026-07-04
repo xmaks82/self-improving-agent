@@ -125,11 +125,20 @@ def cli_main():
             res = await _confirmator.confirm(action)
             return res.result == ConfirmationResult.APPROVED
 
+    # Headless auto-approval is opt-in only. Without it, CONFIRM-level tools
+    # (run_command/write_file/git_commit) fail-closed when there's no
+    # interactive confirmer — so a non-tty run can't be driven into unconfirmed
+    # execution via prompt-injection in tool/web content.
+    import os as _os
+    auto_approve = _os.getenv("AGENT_AUTO_APPROVE", "").lower() in ("1", "true", "yes") \
+        or "--yes" in _sys.argv or "-y" in _sys.argv
+
     tool_registry = ToolRegistry(
         working_dir=Path.cwd(),
         sandbox_mode=True,
         confirm_callback=confirm_callback,
         undo_manager=undo_manager,
+        auto_approve=auto_approve,
     )
 
     # Create agent pipeline (connects all agents) — sub-agents share the registry.

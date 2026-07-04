@@ -1,5 +1,6 @@
 """Context compaction - summarizes old conversation history to save tokens."""
 
+import asyncio
 import logging
 
 from ..clients.base import BaseLLMClient
@@ -73,7 +74,8 @@ class ContextCompactor:
             summary_messages = [
                 {"role": "user", "content": f"{COMPACTION_PROMPT}\n\n---\n{conversation_text}"}
             ]
-            response = self.client.chat(
+            response = await asyncio.to_thread(
+                self.client.chat,
                 messages=summary_messages,
                 system="You are a precise conversation summarizer.",
                 max_tokens=1024,

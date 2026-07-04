@@ -16,6 +16,10 @@ RUN mkdir -p data/logs/conversations data/logs/improvements data/tasks data/memo
 # Environment variables (override in docker-compose or run command)
 ENV PYTHONUNBUFFERED=1
 ENV LOG_LEVEL=INFO
+# data/ is copied to /app/data — point the app there explicitly (the code default
+# resolves to the repo root = /app here, so this just makes it unambiguous and
+# independent of the old /var/www legacy path).
+ENV AGENT_BASE_PATH=/app
 
 # Copy and setup entrypoint
 COPY entrypoint.sh /entrypoint.sh
